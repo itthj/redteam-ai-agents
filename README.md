@@ -142,8 +142,13 @@ docker-compose up -d
 Agents gain external capabilities through MCP servers. Enable them in `.env`:
 
 ```
-MCP_ENABLED_SERVERS=filesystem,shodan,web
+MCP_ENABLED_SERVERS=web
 ```
+
+`web` (the official `mcp-server-fetch`) works out of the box — it ships in
+`requirements.txt` and gives every agent an `mcp_web_fetch` tool for pulling
+CVE advisories and vendor bulletins. `filesystem` additionally needs Node,
+`shodan` needs `uv`.
 
 The registry lives in `mcp_layer/mcp_config.py` — add your own stdio or SSE
 servers there. Discovered MCP tools are namespaced `mcp_<prefix>_<tool>` and
