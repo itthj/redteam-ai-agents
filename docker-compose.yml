@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  agent-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: redteam-agents
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data          # persist evidence, reports, knowledge base
+      - ./.env:/app/.env:ro       # read-only env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    networks:
+      - redteam-net
+
+networks:
+  redteam-net:
+    driver: bridge
