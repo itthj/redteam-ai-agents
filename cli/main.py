@@ -171,6 +171,38 @@ def mcp_cmd():
 cli.add_command(mcp_cmd, name="mcp")
 
 
+# ── agents ────────────────────────────────────────────────────────────────────
+
+@cli.command()
+def agents():
+    """List the full agent roster (deep agents + Kali-aligned phase agents)."""
+    from agents.phase_agents import list_phases
+
+    table = Table(title="Agent Roster", border_style="cyan")
+    table.add_column("Agent", style="bold")
+    table.add_column("Kind", style="dim")
+    table.add_column("Covers")
+
+    deep = [
+        ("recon", "01 Reconnaissance — DNS, OSINT, subdomains"),
+        ("scanner", "09 Discovery — nmap port/service scanning"),
+        ("vuln", "Vulnerability assessment — CVE/CVSS/NSE"),
+        ("exploit", "03 Initial Access — controlled exploitation"),
+        ("post_exploit", "Broad post-exploitation"),
+        ("forensics", "15 Forensics — timeline, ATT&CK, artifacts"),
+        ("reporting", "Report generation"),
+    ]
+    for name, covers in deep:
+        table.add_row(name, "deep", covers)
+    for p in list_phases():
+        table.add_row(p["key"], "phase", f"{p['kali_no']:02d}  {p['name']}")
+
+    console.print(table)
+    console.print(f"\n[dim]{len(deep)} deep agents + {len(list_phases())} phase agents "
+                  f"= {len(deep) + len(list_phases())} specialists. "
+                  f"Run one with:  python -m cli.main agent <name> \"<task>\"[/dim]")
+
+
 # ── kb ────────────────────────────────────────────────────────────────────────
 
 @cli.command()

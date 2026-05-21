@@ -30,7 +30,7 @@ from config.authorization import scope
 from config.settings import settings
 from core.evidence_store import evidence
 from core.knowledge_base import kb
-from core.orchestrator import Orchestrator
+from core.orchestrator import Orchestrator, _ALL_AGENTS
 
 log = logging.getLogger(__name__)
 
@@ -139,9 +139,11 @@ async def run_autonomous(req: AutonomousRequest, _=Depends(verify_token)):
 @app.post("/agent/{agent_name}/run")
 async def run_agent(agent_name: str, req: AgentRequest, _=Depends(verify_token)):
     """Dispatch a task directly to a named agent."""
-    valid_agents = ["recon", "scanner", "vuln", "exploit", "post_exploit", "forensics", "reporting"]
-    if agent_name not in valid_agents:
-        raise HTTPException(status_code=400, detail=f"Unknown agent '{agent_name}'. Valid: {valid_agents}")
+    if agent_name not in _ALL_AGENTS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown agent '{agent_name}'. Valid: {_ALL_AGENTS}",
+        )
     result = await _orchestrator.dispatch(agent_name, req.task, req.context)
     return {"agent": agent_name, "result": result}
 

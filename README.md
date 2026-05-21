@@ -1,9 +1,10 @@
 # Red Team AI Agent System
 
 A state-of-the-art **multi-agent cybersecurity operations platform** built on the
-**Anthropic Claude SDK** (Claude Opus 4.7). Seven specialised AI agents cover the
-full attack lifecycle — reconnaissance through forensics — coordinated by an
-intelligent orchestrator and connected to external tooling via the
+**Anthropic Claude SDK** (Claude Opus 4.7). **18 specialist AI agents** — 7 deep
+agents plus 11 kill-chain phase agents mapped one-to-one to the Kali Linux
+operational categories (01–15) — cover the full attack lifecycle, coordinated
+by an intelligent orchestrator and connected to external tooling via the
 **Model Context Protocol (MCP)**.
 
 > ⚠️ **Authorized penetration testing and red-team operations only.**
@@ -43,17 +44,41 @@ intelligent orchestrator and connected to external tooling via the
                           └────────────────┘
 ```
 
-### The seven agents
+### Deep agents (7) — bespoke tooling
 
-| Agent | Phase | Responsibility |
-|-------|-------|----------------|
-| **ReconAgent** | 1 | DNS, Shodan, WHOIS, subdomain enumeration |
-| **ScannerAgent** | 2 | Nmap port/service scanning, banner grabbing |
-| **VulnAgent** | 3 | CVE/NVD correlation, NSE vuln scripts, CVSS scoring |
-| **ExploitAgent** | 4 | Metasploit RPC, exploit selection, shell management |
-| **PostExploitAgent** | 5 | Enumeration, privesc, lateral-movement discovery |
-| **ForensicsAgent** | 6 | Timeline, MITRE ATT&CK mapping, artifact collection |
-| **ReportingAgent** | 7 | Executive summary, technical findings, remediation |
+| Agent | Responsibility |
+|-------|----------------|
+| **recon** | DNS, Shodan, WHOIS, subdomain enumeration |
+| **scanner** | Nmap port/service scanning, banner grabbing |
+| **vuln** | CVE/NVD correlation, NSE vuln scripts, CVSS scoring |
+| **exploit** | Metasploit RPC, exploit selection, shell management |
+| **post_exploit** | Enumeration, privesc, lateral-movement discovery |
+| **forensics** | Timeline, MITRE ATT&CK mapping, artifact collection |
+| **reporting** | Executive summary, technical findings, remediation |
+
+### Phase agents (11) — one per Kali category
+
+Built on a single data-driven `PhaseAgent` (`agents/phase_agents.py`), each
+specialised by a registry entry. Every phase agent shares a gated toolkit:
+`get_playbook` (ATT&CK techniques + Kali tools), `run_command` (guardrail- and
+scope-checked execution), `record_finding` (knowledge base + evidence chain).
+
+| Agent | Kali | MITRE ATT&CK tactic |
+|-------|------|---------------------|
+| **resource_development** | 02 | Resource Development |
+| **execution** | 04 | Execution |
+| **persistence** | 05 | Persistence |
+| **privilege_escalation** | 06 | Privilege Escalation |
+| **defense_evasion** | 07 | Defense Evasion |
+| **credential_access** | 08 | Credential Access |
+| **lateral_movement** | 10 | Lateral Movement |
+| **collection** | 11 | Collection |
+| **command_and_control** | 12 | Command and Control |
+| **exfiltration** | 13 | Exfiltration |
+| **impact** | 14 | Impact — *assessment only, non-destructive* |
+
+(Kali 01/03/09/15 are covered by the deep agents recon/exploit/scanner/forensics.)
+Run `python main.py agents` to see the full roster.
 
 ---
 

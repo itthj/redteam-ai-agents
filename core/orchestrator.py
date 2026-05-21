@@ -22,6 +22,7 @@ import json
 import logging
 from typing import Callable, Optional
 
+from agents.phase_agents import KALI_PHASES, PhaseAgent
 from config.settings import settings
 from core.base_agent import BaseAgent
 from core.evidence_store import evidence
@@ -41,6 +42,11 @@ _AGENT_PHASES = {
     "reporting": "reporting",
 }
 
+# Deep bespoke agents + the 11 Kali-aligned phase agents = full roster
+_DEEP_AGENTS = ["recon", "scanner", "vuln", "exploit", "post_exploit",
+                "forensics", "reporting"]
+_ALL_AGENTS = _DEEP_AGENTS + sorted(KALI_PHASES)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  OrchestratorAgent — the autonomous planner (agents-as-tools)
@@ -57,7 +63,9 @@ class OrchestratorAgent(BaseAgent):
 You do not run tools against targets yourself. Instead you PLAN the engagement
 and DELEGATE to specialist agents, reasoning about their findings between steps.
 
-SPECIALIST AGENTS (call them via the `delegate` tool):
+SPECIALIST AGENTS — delegate to them via the `delegate` tool.
+
+Deep agents:
   recon         — DNS, OSINT, Shodan, subdomain enumeration
   scanner       — nmap port scanning and service fingerprinting
   vuln          — CVE correlation, CVSS scoring, NSE vuln scripts
@@ -65,6 +73,19 @@ SPECIALIST AGENTS (call them via the `delegate` tool):
   post_exploit  — enumeration, privesc analysis, lateral-movement mapping
   forensics     — timeline, MITRE ATT&CK mapping, artifact collection
   reporting     — executive + technical report generation
+
+Kill-chain phase agents (one per Kali category 01–15):
+  resource_development  — payload / infrastructure prep for the engagement
+  execution             — code execution on accessible in-scope hosts
+  persistence           — reversible, documented footholds
+  privilege_escalation  — escalate privileges on compromised hosts
+  defense_evasion       — test blue-team detection coverage
+  credential_access     — dump and crack credentials
+  lateral_movement      — pivot to other in-scope hosts
+  collection            — inventory data of interest (locations only)
+  command_and_control   — manage C2 channels
+  exfiltration          — test DLP / egress with benign marker data
+  impact                — assess and document impact (non-destructive)
 
 METHODOLOGY (adapt as findings dictate — you are not bound to a fixed order):
   1. Recon the authorized scope to map the attack surface.
@@ -95,8 +116,7 @@ RULES:
                 "properties": {
                     "agent": {
                         "type": "string",
-                        "enum": ["recon", "scanner", "vuln", "exploit",
-                                 "post_exploit", "forensics", "reporting"],
+                        "enum": _ALL_AGENTS,
                         "description": "Which specialist agent to delegate to",
                     },
                     "task": {
@@ -198,6 +218,9 @@ class Orchestrator:
             elif name == "reporting":
                 from agents.reporting_agent import ReportingAgent
                 self._agents[name] = ReportingAgent()
+            elif name in KALI_PHASES:
+                # Kali-aligned kill-chain phase agent (02,04-08,10-14)
+                self._agents[name] = PhaseAgent(name)
             else:
                 raise ValueError(f"Unknown agent: {name}")
         return self._agents[name]
