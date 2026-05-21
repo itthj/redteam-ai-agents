@@ -167,19 +167,27 @@ docker-compose up -d
 Agents gain external capabilities through MCP servers. Enable them in `.env`:
 
 ```
-MCP_ENABLED_SERVERS=web
+MCP_ENABLED_SERVERS=web,filesystem
 ```
 
-`web` (the official `mcp-server-fetch`) works out of the box — it ships in
-`requirements.txt` and gives every agent an `mcp_web_fetch` tool for pulling
-CVE advisories and vendor bulletins. `filesystem` additionally needs Node,
-`shodan` needs `uv`.
+Two servers are wired and ready:
+
+- **`web`** — official `mcp-server-fetch` (ships in `requirements.txt`).
+  Gives every agent `mcp_web_fetch` to pull CVE advisories and vendor bulletins.
+- **`filesystem`** — official `@modelcontextprotocol/server-filesystem` (needs
+  Node; auto-fetched by `npx`). Scoped to the evidence directory and exposed
+  **read-only** via a `tool_allowlist` — 6 read tools, no write/edit/move, so
+  agents can review artefacts without touching the tamper-evident chain.
+
+> **Efficiency note:** MCP tool schemas ride in every agent's context on every
+> call. The `filesystem` server offers 13 tools; only the 6 useful read-only
+> ones are exposed. More servers is not better — the right tools is.
 
 The registry lives in `mcp_layer/mcp_config.py` — add your own stdio or SSE
-servers there. Discovered MCP tools are namespaced `mcp_<prefix>_<tool>` and
-merged into every agent's tool surface. If a server is unreachable the bridge
-logs a warning and the engagement continues on native tools (graceful
-degradation).
+servers there (each may set a `tool_allowlist`). Discovered MCP tools are
+namespaced `mcp_<prefix>_<tool>` and merged into every agent's tool surface.
+An unreachable server is skipped with a warning — the engagement continues on
+native tools (graceful degradation).
 
 ---
 

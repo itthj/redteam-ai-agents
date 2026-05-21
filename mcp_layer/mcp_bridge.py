@@ -35,7 +35,7 @@ from mcp_layer.mcp_config import get_enabled_servers
 
 log = logging.getLogger(__name__)
 
-_CONNECT_TIMEOUT = 20.0   # seconds to wait for a server handshake
+_CONNECT_TIMEOUT = 45.0   # seconds to wait for a server handshake (cold npx installs are slow)
 _CALL_TIMEOUT = 90.0      # seconds to wait for a tool call
 
 
@@ -95,12 +95,20 @@ class MCPBridge:
         return self.summary()
 
     async def _discover(self, name: str, cfg: dict) -> None:
-        """Open a session, list tools, cache namespaced schemas, close."""
+        """Open a session, list tools, cache namespaced schemas, close.
+
+        If the server config defines `tool_allowlist`, only those tools are
+        exposed — keeps the agents' tool surface lean and drops capabilities
+        we don't want (e.g. filesystem write tools near the evidence chain).
+        """
         prefix = cfg.get("tool_prefix", name)
+        allowlist = cfg.get("tool_allowlist")  # None → expose every tool
         async with AsyncExitStack() as stack:
             session = await self._open_session(stack, cfg)
             tools_result = await session.list_tools()
             for tool in tools_result.tools:
+                if allowlist is not None and tool.name not in allowlist:
+                    continue
                 exposed = f"mcp_{prefix}_{tool.name}"
                 self._routes[exposed] = (name, tool.name)
                 self._tool_schemas.append({

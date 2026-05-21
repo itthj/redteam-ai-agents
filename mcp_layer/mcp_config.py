@@ -60,6 +60,16 @@ MCP_SERVERS: dict[str, dict] = {
         ],
         "description": "Read/list files in the evidence directory",
         "tool_prefix": "fs",
+        # READ-ONLY subset only — keeps the tool surface lean and prevents
+        # agents from writing/editing/moving files in the evidence chain.
+        "tool_allowlist": [
+            "read_text_file",
+            "read_multiple_files",
+            "list_directory",
+            "directory_tree",
+            "search_files",
+            "get_file_info",
+        ],
     },
 
     # ── Shodan OSINT (optional — needs `uv` + SHODAN_API_KEY) ─────────────────
