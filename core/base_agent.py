@@ -38,12 +38,18 @@ from config.settings import settings
 from core.evidence_store import evidence
 from core.guardrails import GuardrailViolation, guardrails
 from core.knowledge_base import kb
+from core.model_router import router
 from core.telemetry import telemetry
 from mcp_layer.mcp_bridge import bridge
 
 log = logging.getLogger(__name__)
 
 _CACHE = {"type": "ephemeral"}
+
+# Tool results larger than this (chars) become candidates for fast-model
+# compression when settings.compress_tool_output is enabled (5A). nmap / NSE /
+# linpeas dumps routinely exceed this; smaller results pass through untouched.
+_COMPRESS_THRESHOLD = 6000
 
 
 class BaseAgent:
@@ -76,6 +82,7 @@ class BaseAgent:
         )
         self._model = self.MODEL or settings.claude_model
         self._effort = self.EFFORT or settings.agent_effort
+        self._downgraded = False             # budget governor (5A) — one-way latch
         self._system_block = self._build_system_block()
         log.info("[%s] Agent ready — model=%s effort=%s", self.NAME.upper(),
                  self._model, self._effort)
@@ -92,6 +99,28 @@ class BaseAgent:
         messages = [{"role": "user", "content": self._build_first_message(task, context)}]
 
         for iteration in range(1, self.MAX_ITERATIONS + 1):
+            # ── Budget governor (5A) — checked before each turn ──────────────
+            # No-op unless engagement_budget_usd is set and already exceeded.
+            if telemetry.over_budget():
+                if settings.on_budget_exceeded == "halt":
+                    log.warning("[%s] Engagement budget exceeded — halting (mode=halt)",
+                                self.NAME.upper())
+                    evidence.log(self.NAME, "budget",
+                                 "Engagement budget exceeded — run halted",
+                                 severity="medium")
+                    return (f"[{self.NAME} halted — engagement budget exceeded. "
+                            f"Partial findings are saved in the knowledge base.]")
+                if not self._downgraded:
+                    log.warning("[%s] Engagement budget exceeded — downgrading to %s "
+                                "for the rest of the run (mode=downgrade)",
+                                self.NAME.upper(), settings.claude_fast_model)
+                    evidence.log(self.NAME, "budget",
+                                 f"Engagement budget exceeded — downgraded to "
+                                 f"{settings.claude_fast_model}", severity="info")
+                    self._model = settings.claude_fast_model
+                    self._effort = "low"
+                    self._downgraded = True
+
             self._apply_cache_breakpoint(messages)
 
             try:
@@ -227,6 +256,13 @@ class BaseAgent:
             if getattr(block, "type", None) != "tool_use":
                 continue
             text, is_error = await self._execute_tool(block.name, dict(block.input))
+            # Cost control (5A): shrink oversized tool dumps via the fast model
+            # before they enter (and grow) the expensive cached context. Opt-in;
+            # errors and small results are passed through untouched.
+            if (not is_error
+                    and settings.compress_tool_output
+                    and len(text) > _COMPRESS_THRESHOLD):
+                text = await self._compress_tool_output(text)
             results.append({
                 "type": "tool_result",
                 "tool_use_id": block.id,
@@ -234,6 +270,45 @@ class BaseAgent:
                 "is_error": is_error,
             })
         return results
+
+    async def _compress_tool_output(self, text: str) -> str:
+        """
+        Compress a large tool result down to its security-relevant facts with a
+        one-shot fast-model (Haiku) call, before it enters the main Opus context
+        (5A cost control).
+
+        Degrades gracefully like the MCP layer: on ANY error, or an empty
+        summary, the original text is returned unchanged — compression must
+        never lose a finding or break the agentic loop.
+        """
+        model = router.pick("summarize")[0]
+        try:
+            response = await self._client.messages.create(
+                model=model,
+                max_tokens=1024,
+                system=(
+                    "You compress security-tool output for a red-team engagement. "
+                    "Extract ONLY the security-relevant facts: hosts, ports, "
+                    "services and versions, vulnerabilities/CVEs, credentials, "
+                    "interesting files/paths, and errors. Be terse and lossless on "
+                    "facts; drop banners, ASCII art, progress bars, and noise."
+                ),
+                messages=[{
+                    "role": "user",
+                    "content": f"Compress this tool output:\n\n{text}",
+                }],
+            )
+        except Exception as e:  # noqa: BLE001 — graceful degradation
+            log.warning("[%s] tool-output compression failed (%s) — using raw output",
+                        self.NAME.upper(), e)
+            return text
+
+        telemetry.record(self.NAME, model, response.usage)
+        compressed = self._extract_text(response.content)
+        if not compressed:
+            return text
+        return (f"[compressed {len(text)}→{len(compressed)} chars via {model}]\n"
+                f"{compressed}")
 
     async def _execute_tool(self, name: str, inputs: dict) -> tuple[str, bool]:
         """Run one tool (native or MCP). Returns (result_text, is_error)."""

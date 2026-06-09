@@ -174,6 +174,12 @@ RULES:
             "mission_phase": kb.get_state(),
             "knowledge_base": kb.snapshot(),
             "telemetry": telemetry.summary(),
+            "budget": {
+                "limit_usd": settings.engagement_budget_usd,
+                "spent_usd": round(telemetry.total_cost(), 4),
+                "remaining_usd": telemetry.budget_remaining(),
+                "over_budget": telemetry.over_budget(),
+            },
         }
 
     def _set_phase(self, phase: str) -> dict:

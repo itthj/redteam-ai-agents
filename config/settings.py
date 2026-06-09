@@ -55,6 +55,12 @@ class Settings(BaseSettings):
     orchestrator_effort: str = "xhigh"
     agent_effort: str = "high"
 
+    # ── Cost / budget governor (5A) ───────────────────────────────────────────
+    # All optional with safe defaults so an existing .env keeps working unchanged.
+    engagement_budget_usd: float = 0.0     # USD ceiling for the engagement; 0 = no ceiling
+    on_budget_exceeded: str = "downgrade"  # when the ceiling is hit: "downgrade" | "halt"
+    compress_tool_output: bool = False     # opt-in: summarise oversized tool output via the fast model
+
     # ── Engagement Authorization ──────────────────────────────────────────────
     authorized_targets: str = ""
     engagement_id: str = "ENG-UNKNOWN"

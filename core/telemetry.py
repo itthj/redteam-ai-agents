@@ -20,6 +20,9 @@ import threading
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import Optional
+
+from config.settings import settings
 
 log = logging.getLogger(__name__)
 
@@ -135,6 +138,30 @@ class Telemetry:
             "cache_hit_rate": round(u.cache_hit_rate, 3),
             "cost_usd": round(u.cost_usd, 4),
         }
+
+    # ── Budget governor (5A) ───────────────────────────────────────────────────
+
+    def total_cost(self) -> float:
+        """Total USD spent across all agents so far this engagement."""
+        with self._lock:
+            return sum(u.cost_usd for u in self._by_agent.values())
+
+    def budget_remaining(self) -> Optional[float]:
+        """
+        USD remaining under `engagement_budget_usd`.
+
+        Returns None when no budget is set (0 = unlimited), so callers can
+        distinguish "no ceiling" from "exactly nothing left".
+        """
+        budget = settings.engagement_budget_usd
+        if not budget or budget <= 0:
+            return None
+        return budget - self.total_cost()
+
+    def over_budget(self) -> bool:
+        """True only when a budget is set and it has been reached or exceeded."""
+        remaining = self.budget_remaining()
+        return remaining is not None and remaining <= 0
 
     def reset(self) -> None:
         with self._lock:
