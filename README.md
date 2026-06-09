@@ -35,6 +35,7 @@ by an intelligent orchestrator and connected to external tooling via the
               │   • Telemetry      — token/cost tracking│
               │   • Guardrails     — destructive-block  │
               │   • AttackFramework— MITRE ATT&CK map   │
+              │   • AttackGraph    — attack path graph  │
               │   • Authorization  — scope gate         │
               └───────────────────┬─────────────────────┘
                                   │
@@ -218,6 +219,25 @@ and repeatable; good for recurring assessments.
 effort) treats each specialist agent as a *tool*, reasons about findings between
 delegations, and decides what to do next. This is the agents-as-tools multi-agent
 pattern.
+
+---
+
+## Attack graph
+
+Every fact the agents learn — hosts, services, vulnerabilities, credentials,
+footholds — is mirrored from the `KnowledgeBase` into an in-process **attack
+graph** (`core/attack_graph.py`) through a write sink, so the planner can ask
+*path* questions instead of re-reading a flat JSON blob:
+
+- `high_value_unexploited()` — crown-jewel services (vulnerable, not yet owned), ranked by CVSS.
+- `reachable_unowned_hosts()` — hosts seen but not yet compromised.
+- `shortest_path_to("domain_admin")` — the shortest path from a current foothold to the goal.
+
+The default backend is **networkx** (zero infrastructure, and what the tests run
+against). Set `NEO4J_URI` (and `docker-compose up -d neo4j`) to ALSO mirror every
+write into Neo4j for a live BloodHound-style browser at http://localhost:7474 —
+reads still come from the in-process graph, and if Neo4j is unreachable the
+engagement is unaffected (graceful degradation, exactly like the MCP layer).
 
 ---
 
