@@ -4,6 +4,9 @@
 # ─── Engagement data (evidence, reports, knowledge base) ──────────────────────
 data/
 
+# ─── Agent scratchpad (planning notes — not part of the project) ──────────────
+.dev/
+
 # ─── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
