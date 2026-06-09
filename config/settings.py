@@ -83,6 +83,13 @@ class Settings(BaseSettings):
     # ── MCP ───────────────────────────────────────────────────────────────────
     mcp_enabled_servers: str = ""
 
+    # ── Attack graph (2A) ─────────────────────────────────────────────────────
+    # Optional Neo4j mirror for a live BloodHound-style browser. Empty uri =
+    # in-process networkx only (the default; no infrastructure required).
+    neo4j_uri: str = ""
+    neo4j_user: str = "neo4j"
+    neo4j_password: str = ""
+
     # ── Storage ───────────────────────────────────────────────────────────────
     evidence_dir: Path = Path("./data/evidence")
     reports_dir: Path = Path("./data/reports")

@@ -47,6 +47,22 @@ class KnowledgeBase:
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._data: dict = self._load()
+        self._sinks: list = []          # 2A: mirror writes into the attack graph, etc.
+
+    # ── Sinks (2A) ────────────────────────────────────────────────────────────
+
+    def attach_sink(self, sink) -> None:
+        """Register a callable sink(event, payload) that mirrors every intel write
+        elsewhere (e.g. the attack graph). Best-effort — a failing sink never
+        breaks a KB write."""
+        self._sinks.append(sink)
+
+    def _emit(self, event: str, **payload) -> None:
+        for sink in self._sinks:
+            try:
+                sink(event, payload)
+            except Exception as e:  # noqa: BLE001 — a sink must never break a write
+                log.warning("KB sink failed on '%s': %s", event, e)
 
     # ── Persistence ───────────────────────────────────────────────────────────
 
@@ -100,6 +116,7 @@ class KnowledgeBase:
             if hostname not in t["hostnames"]:
                 t["hostnames"].append(hostname)
             self.save()
+            self._emit("hostname_added", ip=ip, hostname=hostname)
 
     def add_port(self, ip: str, port: int, protocol: str = "tcp", state: str = "open") -> None:
         with self._lock:
@@ -108,12 +125,14 @@ class KnowledgeBase:
             if entry not in t["open_ports"]:
                 t["open_ports"].append(entry)
             self.save()
+            self._emit("port_added", ip=ip, port=port, protocol=protocol, state=state)
 
     def add_service(self, ip: str, port: int, service_info: dict) -> None:
         with self._lock:
             t = self.ensure_target(ip)
             t["services"][str(port)] = service_info
             self.save()
+            self._emit("service_added", ip=ip, port=port, info=service_info)
 
     def add_vulnerability(self, ip: str, vuln: dict) -> None:
         """
@@ -123,6 +142,7 @@ class KnowledgeBase:
             t = self.ensure_target(ip)
             t["vulnerabilities"].append({**vuln, "found_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
             self.save()
+            self._emit("vuln_added", ip=ip, vuln=vuln)
 
     def add_credential(self, ip: str, cred: dict) -> None:
         """cred: {username, password/hash, service, port}"""
@@ -132,6 +152,7 @@ class KnowledgeBase:
             # Also in global creds list for cross-target reuse
             self._data["credentials"].append({**cred, "source_ip": ip})
             self.save()
+            self._emit("credential_added", ip=ip, cred=cred)
 
     def add_shell(self, ip: str, shell_info: dict) -> None:
         with self._lock:
@@ -140,6 +161,7 @@ class KnowledgeBase:
             if ip not in self._data["pivot_hosts"]:
                 self._data["pivot_hosts"].append(ip)
             self.save()
+            self._emit("shell_added", ip=ip, info=shell_info)
 
     def add_exploit_attempt(self, ip: str, attempt: dict) -> None:
         with self._lock:

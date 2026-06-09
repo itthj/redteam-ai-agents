@@ -85,6 +85,10 @@ def main() -> None:
     setup_logging()
     if not _preflight():
         sys.exit(1)
+    # Mirror knowledge-base writes into the attack graph (2A)
+    from core.attack_graph import graph
+    from core.knowledge_base import kb
+    kb.attach_sink(graph.on_kb_event)
     # Hand off to the rich CLI
     from cli.main import cli
     cli()
