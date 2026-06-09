@@ -17,6 +17,25 @@ services:
     networks:
       - redteam-net
 
+  # Optional (2A) — attack-graph browser. Set NEO4J_URI=bolt://neo4j:7687 in .env
+  # to use it; browser at http://localhost:7474 (login neo4j / change_me_neo4j).
+  neo4j:
+    image: neo4j:5
+    container_name: redteam-neo4j
+    ports:
+      - "7474:7474"   # HTTP browser
+      - "7687:7687"   # Bolt
+    environment:
+      - NEO4J_AUTH=neo4j/change_me_neo4j
+    volumes:
+      - neo4j-data:/data
+    restart: unless-stopped
+    networks:
+      - redteam-net
+
 networks:
   redteam-net:
     driver: bridge
+
+volumes:
+  neo4j-data:
