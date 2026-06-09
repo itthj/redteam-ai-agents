@@ -96,6 +96,24 @@ Every agent runs on the **`BaseAgent`** foundation, which uses:
 - **Telemetry** — token usage, cache-hit rate, and USD cost tracked per agent
 - **Guardrails** — every tool input screened for destructive actions before it runs
 
+### Cost controls — model router + budget governor
+
+Three opt-in cost levers, all **off by default** so existing engagements run unchanged:
+
+- **Model router** (`core/model_router.py`) maps a task class to the right
+  `(model, effort)`: high-stakes reasoning (planning, exploit decisions) stays on
+  Opus; mechanical work (parsing/summarising scan output) routes to the fast model
+  (Haiku).
+- **Tool-output compression** — set `COMPRESS_TOOL_OUTPUT=true` and oversized tool
+  dumps (nmap / NSE / linpeas) are summarised to their security-relevant facts by
+  the fast model *before* they enter (and grow) the expensive Opus context. Degrades
+  gracefully: on any error the raw output is kept.
+- **Budget governor** — set `ENGAGEMENT_BUDGET_USD` to cap spend. `BaseAgent.run`
+  checks the remaining budget before every turn; on breach it either downgrades to
+  the fast model for the rest of the run or halts cleanly (partial findings stay in
+  the knowledge base), per `ON_BUDGET_EXCEEDED=downgrade|halt`. Remaining budget is
+  surfaced in the orchestrator's `get_engagement_status`.
+
 ---
 
 ## Quick Start (Kali Linux)
