@@ -357,5 +357,20 @@ def actors():
     console.print(table)
 
 
+# ── serve-mcp (5E) ───────────────────────────────────────────────────────────────
+
+@cli.command(name="serve-mcp")
+@click.option("--transport", default="stdio", type=click.Choice(["stdio", "sse"]),
+              help="stdio (local) or sse (network)")
+def serve_mcp(transport):
+    """Expose this red-team system to other tools as an MCP server."""
+    from mcp_layer.redteam_mcp_server import serve, _mcp_available
+    if not _mcp_available():
+        console.print("[yellow]MCP SDK not installed — run: pip install mcp[/yellow]")
+        return
+    console.print(f"[green]Serving red-team agents over MCP ({transport})…[/green]")
+    serve(transport=transport)
+
+
 if __name__ == "__main__":
     cli()

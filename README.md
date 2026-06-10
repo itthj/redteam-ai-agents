@@ -210,6 +210,12 @@ namespaced `mcp_<prefix>_<tool>` and merged into every agent's tool surface.
 An unreachable server is skipped with a warning — the engagement continues on
 native tools (graceful degradation).
 
+**Inverse direction (5E):** expose *this* system to other tools (Claude Desktop,
+CI) over MCP with `python main.py serve-mcp` — a small, safe surface (`run_recon`,
+`run_mission`, `run_autonomous`, `get_findings`, `get_evidence`, `verify_chain`)
+that routes through the same scope / guardrail / evidence gates, so external
+callers get no privileged path around the safety layer.
+
 ---
 
 ## Run Modes
