@@ -233,6 +233,12 @@ graph** (`core/attack_graph.py`) through a write sink, so the planner can ask
 - `reachable_unowned_hosts()` — hosts seen but not yet compromised.
 - `shortest_path_to("domain_admin")` — the shortest path from a current foothold to the goal.
 
+The autonomous planner reads the graph through two orchestrator tools —
+`query_attack_graph` (path/relationship questions) and `next_best_action`
+(a ranked list of `{agent, target, rationale, score}` moves) — so delegations
+follow attack *paths*, not just the flat KB. It stays advisory: the model still
+decides.
+
 The default backend is **networkx** (zero infrastructure, and what the tests run
 against). Set `NEO4J_URI` (and `docker-compose up -d neo4j`) to ALSO mirror every
 write into Neo4j for a live BloodHound-style browser at http://localhost:7474 —
