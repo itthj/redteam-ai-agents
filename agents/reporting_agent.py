@@ -22,6 +22,7 @@ from typing import Optional
 
 from config.settings import settings
 from core.base_agent import BaseAgent
+from core.compliance import ledger, map_finding, rollup
 from core.evidence_store import evidence
 from core.knowledge_base import kb
 
@@ -91,6 +92,23 @@ WRITING RULES:
                 "required": ["title", "content"],
             },
         },
+        {
+            "name": "map_to_compliance",
+            "description": "Map a MITRE ATT&CK technique id to NIST 800-53 / PCI DSS / "
+                           "SOC 2 controls.",
+            "input_schema": {
+                "type": "object",
+                "properties": {"technique_id": {"type": "string"}},
+                "required": ["technique_id"],
+            },
+        },
+        {
+            "name": "compliance_rollup",
+            "description": "Roll up all current findings by control family (NIST/PCI) and "
+                           "diff them against the findings ledger (new / still-open / "
+                           "resolved) for retest tracking.",
+            "input_schema": {"type": "object", "properties": {}, "required": []},
+        },
     ]
 
     def _tool_map(self):
@@ -99,6 +117,8 @@ WRITING RULES:
             "get_evidence_timeline": self._get_evidence_timeline,
             "calculate_risk_score": self._calculate_risk_score,
             "save_report": self._save_report,
+            "map_to_compliance": self._map_to_compliance,
+            "compliance_rollup": self._compliance_rollup,
         }
 
     # ── Tool implementations ──────────────────────────────────────────────────
@@ -187,4 +207,26 @@ WRITING RULES:
             "saved": str(out_path),
             "size_bytes": len(content.encode()),
             "title": title,
+        }
+
+    # ── Compliance + retest (5F) ──────────────────────────────────────────────
+
+    def _map_to_compliance(self, technique_id: str) -> dict:
+        return map_finding(technique_id)
+
+    def _compliance_rollup(self) -> dict:
+        findings = []
+        for ip, data in kb.get_all_targets().items():
+            for v in data.get("vulnerabilities", []):
+                findings.append({
+                    "target": ip,
+                    "port": v.get("port"),
+                    "cve": v.get("cve"),
+                    "technique": v.get("technique", "T1190"),
+                    "severity": v.get("severity", "info"),
+                })
+        return {
+            "findings": len(findings),
+            "compliance": rollup([f["technique"] for f in findings]),
+            "retest": ledger.diff(findings),
         }

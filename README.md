@@ -307,6 +307,17 @@ as evidence, not blocked (destructive actions stay hard-blocked by guardrails).
 
 ---
 
+## Compliance & retest tracking
+
+The reporting agent maps each finding's ATT&CK technique to **NIST 800-53 / PCI
+DSS / SOC 2** controls (`map_to_compliance`) and rolls findings up by control
+family (`compliance_rollup`). Each finding gets a stable `finding_signature`
+(target + port + CVE + technique) tracked in `data/findings_ledger.json`, so
+re-running against the same target labels findings **new / still-open / resolved**
+— a trackable remediation program rather than a one-off test.
+
+---
+
 ## Testing
 
 ```bash
