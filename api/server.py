@@ -50,10 +50,18 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# CORS — configurable via API_CORS_ORIGINS (comma-separated). Default "*" keeps
+# the original open behavior for localhost use; set explicit origins to lock down
+# a networked deployment. With the "*" wildcard, allow_credentials is disabled:
+# the CORS spec forbids a credentialed wildcard response and browsers reject it,
+# so the previous allow_origins=["*"] + allow_credentials=True was a no-op at best.
+# Credentials are enabled automatically once explicit origins are configured.
+_cors_origins = [o.strip() for o in settings.api_cors_origins.split(",") if o.strip()] or ["*"]
+_cors_wildcard = _cors_origins == ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=not _cors_wildcard,
     allow_methods=["*"],
     allow_headers=["*"],
 )

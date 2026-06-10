@@ -50,7 +50,7 @@ class Settings(BaseSettings):
 
     # ── Anthropic ─────────────────────────────────────────────────────────────
     anthropic_api_key: str = Field(...)
-    claude_model: str = "claude-opus-4-7"
+    claude_model: str = "claude-opus-4-8"
     claude_fast_model: str = "claude-haiku-4-5"
     orchestrator_effort: str = "xhigh"
     agent_effort: str = "high"
@@ -115,6 +115,10 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     api_secret_key: str = "change_me"
+    # CORS allow-list (comma-separated origins). "*" = open (default, keeps the
+    # original localhost-friendly behavior); set explicit origins — e.g.
+    # "https://ops.example.com" — to lock down a networked deployment.
+    api_cors_origins: str = "*"
 
     # ── Logging ───────────────────────────────────────────────────────────────
     log_level: str = "INFO"

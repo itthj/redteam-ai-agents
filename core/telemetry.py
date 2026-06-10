@@ -8,6 +8,7 @@ operator can see — per agent and in total — how many tokens were spent,
 how well prompt caching is working, and the running dollar cost.
 
 Pricing reference (USD per 1M tokens, cached 2026-05):
+    claude-opus-4-8    input $5.00   output $25.00
     claude-opus-4-7    input $5.00   output $25.00
     claude-haiku-4-5   input $1.00   output $5.00
 Cache writes cost 1.25x base input; cache reads cost 0.1x base input.
@@ -28,6 +29,7 @@ log = logging.getLogger(__name__)
 
 # Base input / output price per 1M tokens
 _PRICING: dict[str, tuple[float, float]] = {
+    "claude-opus-4-8": (5.00, 25.00),
     "claude-opus-4-7": (5.00, 25.00),
     "claude-opus-4-6": (5.00, 25.00),
     "claude-sonnet-4-6": (3.00, 15.00),

@@ -1,7 +1,9 @@
 # Red Team AI Agent System
 
+[![tests](https://github.com/itthj/redteam-ai-agents/actions/workflows/ci.yml/badge.svg)](https://github.com/itthj/redteam-ai-agents/actions/workflows/ci.yml)
+
 A state-of-the-art **multi-agent cybersecurity operations platform** built on the
-**Anthropic Claude SDK** (Claude Opus 4.7). **18 specialist AI agents** — 7 deep
+**Anthropic Claude SDK** (Claude Opus 4.8). **18 specialist AI agents** — 7 deep
 agents plus 11 kill-chain phase agents mapped one-to-one to the Kali Linux
 operational categories (01–15) — cover the full attack lifecycle, coordinated
 by an intelligent orchestrator and connected to external tooling via the
@@ -19,7 +21,7 @@ by an intelligent orchestrator and connected to external tooling via the
                     │            ORCHESTRATOR                   │
                     │  • Deterministic kill-chain mode          │
                     │  • Autonomous mode (agents-as-tools,      │
-                    │    Claude Opus 4.7 @ xhigh effort)        │
+                    │    Claude Opus 4.8 @ xhigh effort)        │
                     └────────────────────┬─────────────────────┘
                                          │ delegates to
         ┌──────┬──────┬──────────┬───────┴────┬────────────┬───────────┐
@@ -87,7 +89,7 @@ Run `python main.py agents` to see the full roster.
 
 Every agent runs on the **`BaseAgent`** foundation, which uses:
 
-- **Claude Opus 4.7** — the orchestrator at `xhigh` effort, sub-agents at `high`
+- **Claude Opus 4.8** — the orchestrator at `xhigh` effort, sub-agents at `high`
 - **Adaptive thinking** — Claude decides reasoning depth per turn; summaries captured
 - **Streaming** — every turn streamed, so long analyses never hit HTTP timeouts
 - **Prompt caching** — the frozen system prompt + tool schemas are cached across

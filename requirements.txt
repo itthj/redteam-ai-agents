@@ -1,5 +1,5 @@
 # ─── Core AI ───────────────────────────────────────────────────────────────────
-anthropic>=0.69.0           # Claude SDK — Opus 4.7, adaptive thinking, effort, caching
+anthropic>=0.69.0           # Claude SDK — Opus 4.8, adaptive thinking, effort, caching
 mcp>=1.2.0                  # Model Context Protocol — connect agents to external tools
 mcp-server-fetch>=2025.1.0  # MCP fetch server — the ready-to-use 'web' server
 

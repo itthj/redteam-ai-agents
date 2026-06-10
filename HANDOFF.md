@@ -58,8 +58,9 @@ and degrades gracefully if an optional dependency/backend is missing (the
   **Before any real engagement:** put a real key in `.env` only after de-syncing the
   folder or relocating the repo to a non-OneDrive path. OneDrive can also corrupt `.git`
   during concurrent ops.
-- The model is pinned to `claude-opus-4-7`; environment is on 4.8. `telemetry._PRICING`
-  has no `claude-opus-4-8` entry (falls back to Opus default pricing) — see §4.11.
+- The model now defaults to `claude-opus-4-8` (`config/settings.py`, `.env.example`),
+  matching the environment. `telemetry._PRICING` carries both `claude-opus-4-8` and the
+  retained `claude-opus-4-7` entry ($5/$25 each). Resolved 2026-06-10 — see §4.11.
 
 ---
 
@@ -100,13 +101,14 @@ tests" is the only claim that can be made.
 it exercises the real API loop, real tools, and the orchestrator end-to-end for the
 first time. Everything else is secondary to this.
 
-**4.2 — Validate the live Anthropic call shape.** `core/base_agent.py::_stream_turn`
-sends `thinking={"type":"adaptive","display":"summarized"}` and
-`output_config={"effort": ...}` to `client.messages.stream(...)`. These are Opus 4.x
-controls but the exact call shape has never hit the wire — it's the most likely thing
-to break on first contact. Confirm against the installed `anthropic` SDK version and
-the model id. Also reconcile the model: bump `claude-opus-4-7` → `4.8` if intended
-(see 4.11). Have the SDK/API reference open (the `claude-api` skill) before touching this.
+**4.2 — Validate the live Anthropic call shape. [SDK-VERIFIED 2026-06-10 — still unproven on the wire]**
+`core/base_agent.py::_stream_turn` sends `thinking={"type":"adaptive","display":"summarized"}`
+and `output_config={"effort": ...}` to `client.messages.stream(...)`. Confirmed correct
+against the installed `anthropic` **0.109.0** SDK: `output_config`, adaptive `thinking`,
+`display`, and `effort` are all real typed params, so the call will not `TypeError` at the
+Python layer. No `temperature`/`top_p`/`top_k`/`budget_tokens` are sent (all of which would
+400 on Opus 4.7/4.8). This was a static + SDK-introspection check, **not** a live API call —
+the actual wire round-trip is still part of 4.1 (needs a real key). Reference: `claude-api` skill.
 
 **4.3 — Install + validate the FULL `requirements.txt`.** The venv only has test deps.
 Production needs `aiohttp, aiofiles, sqlalchemy, aiosqlite, cryptography, bcrypt,
@@ -157,9 +159,11 @@ the repo off the synced path. Rotate any key that has touched the synced `.env`.
 no-API-key guarantee makes this trivial and high-value — it locks in the 131 tests as a
 regression gate. Pin the Python version (3.12).
 
-**4.11 — Model/pricing reconcile.** Decide opus-4-7 vs 4-8 (`config/settings.py::
-claude_model`) and add the chosen model to `core/telemetry.py::_PRICING` so the budget
-governor (5A) prices it correctly instead of using the Opus default.
+**4.11 — Model/pricing reconcile. [DONE 2026-06-10]** Default bumped opus-4-7 → `claude-opus-4-8`
+(`config/settings.py::claude_model`, `.env.example`); added `"claude-opus-4-8": (5.00, 25.00)`
+to `core/telemetry.py::_PRICING` (the 4-7 entry is retained — `test_budget_governor.py` asserts
+it). 131 tests still green. Revert: set `CLAUDE_MODEL=claude-opus-4-7`, or restore the settings
+default and drop the new pricing key.
 
 ### Tier 4 — Polish
 

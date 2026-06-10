@@ -11,7 +11,7 @@ OTLP sink — Honeycomb, Datadog, …).
 
 Usage:
     from core.tracing import span
-    with span("agent.turn", agent="recon", model="claude-opus-4-7"):
+    with span("agent.turn", agent="recon", model="claude-opus-4-8"):
         ...
 """
 
