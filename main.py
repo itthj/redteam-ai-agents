@@ -89,6 +89,9 @@ def main() -> None:
     from core.attack_graph import graph
     from core.knowledge_base import kb
     kb.attach_sink(graph.on_kb_event)
+    # Initialise tracing — no-op unless OTel + OTEL_EXPORTER_OTLP_ENDPOINT are set (5C)
+    from core.tracing import init_tracing
+    init_tracing()
     # Hand off to the rich CLI
     from cli.main import cli
     cli()

@@ -90,6 +90,11 @@ class Settings(BaseSettings):
     neo4j_user: str = "neo4j"
     neo4j_password: str = ""
 
+    # ── Tracing (5C) ──────────────────────────────────────────────────────────
+    # OTLP endpoint for OpenTelemetry spans (e.g. http://localhost:4318/v1/traces).
+    # Empty = tracing off (no-op). Needs `opentelemetry-exporter-otlp-proto-http`.
+    otel_exporter_otlp_endpoint: str = ""
+
     # ── Storage ───────────────────────────────────────────────────────────────
     evidence_dir: Path = Path("./data/evidence")
     reports_dir: Path = Path("./data/reports")

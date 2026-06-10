@@ -40,6 +40,7 @@ from core.guardrails import GuardrailViolation, guardrails
 from core.knowledge_base import kb
 from core.model_router import router
 from core.telemetry import telemetry
+from core.tracing import span
 from mcp_layer.mcp_bridge import bridge
 
 log = logging.getLogger(__name__)
@@ -187,8 +188,14 @@ class BaseAgent:
         if tools:
             kwargs["tools"] = tools
 
-        async with self._client.messages.stream(**kwargs) as stream:
-            return await stream.get_final_message()
+        with span("agent.turn", agent=self.NAME, model=self._model, effort=self._effort) as s:
+            async with self._client.messages.stream(**kwargs) as stream:
+                message = await stream.get_final_message()
+            usage = getattr(message, "usage", None)
+            if s is not None and usage is not None:
+                s.set_attribute("input_tokens", getattr(usage, "input_tokens", 0) or 0)
+                s.set_attribute("output_tokens", getattr(usage, "output_tokens", 0) or 0)
+            return message
 
     def _build_system_block(self) -> str:
         """Frozen system prompt — role + engagement rules of engagement."""
@@ -255,14 +262,17 @@ class BaseAgent:
         for block in content:
             if getattr(block, "type", None) != "tool_use":
                 continue
-            text, is_error = await self._execute_tool(block.name, dict(block.input))
-            # Cost control (5A): shrink oversized tool dumps via the fast model
-            # before they enter (and grow) the expensive cached context. Opt-in;
-            # errors and small results are passed through untouched.
-            if (not is_error
-                    and settings.compress_tool_output
-                    and len(text) > _COMPRESS_THRESHOLD):
-                text = await self._compress_tool_output(text)
+            inputs = dict(block.input)
+            with span("agent.tool", agent=self.NAME, tool=block.name,
+                      target=inputs.get("target") or inputs.get("ip")):
+                text, is_error = await self._execute_tool(block.name, inputs)
+                # Cost control (5A): shrink oversized tool dumps via the fast model
+                # before they enter (and grow) the expensive cached context. Opt-in;
+                # errors and small results are passed through untouched.
+                if (not is_error
+                        and settings.compress_tool_output
+                        and len(text) > _COMPRESS_THRESHOLD):
+                    text = await self._compress_tool_output(text)
             results.append({
                 "type": "tool_result",
                 "tool_use_id": block.id,

@@ -29,6 +29,7 @@ from core.base_agent import BaseAgent
 from core.evidence_store import evidence
 from core.knowledge_base import kb
 from core.telemetry import telemetry
+from core.tracing import span
 from mcp_layer.mcp_bridge import bridge
 
 log = logging.getLogger(__name__)
@@ -200,13 +201,14 @@ RULES:
         log.info("[ORCHESTRATOR] → delegating to '%s'", agent)
         evidence.log("orchestrator", "delegate", f"Delegated to {agent}: {task[:80]}",
                      severity="info")
-        try:
-            sub_agent = self._get_agent(agent)
-            result = await sub_agent.run(task)
-            return {"agent": agent, "findings": result}
-        except Exception as e:
-            log.error("[ORCHESTRATOR] delegation to '%s' failed: %s", agent, e)
-            return {"agent": agent, "error": str(e)}
+        with span("orchestrator.delegate", agent=agent):
+            try:
+                sub_agent = self._get_agent(agent)
+                result = await sub_agent.run(task)
+                return {"agent": agent, "findings": result}
+            except Exception as e:
+                log.error("[ORCHESTRATOR] delegation to '%s' failed: %s", agent, e)
+                return {"agent": agent, "error": str(e)}
 
     def _get_status(self) -> dict:
         return {
