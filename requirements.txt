@@ -26,6 +26,11 @@ aiosqlite>=0.20.0           # async SQLite for evidence store
 networkx>=3.0               # in-process attack graph — the default backend
 # neo4j>=5.0                 # OPTIONAL — live BloodHound-style graph browser (see .env)
 
+# ─── Tracing (5C) ───────────────────────────────────────────────────────────────
+opentelemetry-api>=1.20
+opentelemetry-sdk>=1.20
+# opentelemetry-exporter-otlp-proto-http>=1.20  # OPTIONAL — needed to actually export spans
+
 # ─── Security / crypto ─────────────────────────────────────────────────────────
 cryptography>=42.0.0
 bcrypt>=4.1.0

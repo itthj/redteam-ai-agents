@@ -33,6 +33,20 @@ services:
     networks:
       - redteam-net
 
+  # Optional (5C) — traces. Set OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
+  # in .env (or http://localhost:4318/v1/traces from the host). UI at http://localhost:16686.
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    container_name: redteam-jaeger
+    ports:
+      - "16686:16686"   # UI
+      - "4318:4318"     # OTLP HTTP
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    restart: unless-stopped
+    networks:
+      - redteam-net
+
 networks:
   redteam-net:
     driver: bridge
