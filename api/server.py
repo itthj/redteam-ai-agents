@@ -18,21 +18,31 @@ Endpoints:
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
+import time
 from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from config.authorization import scope
 from config.settings import settings
+from core.attack_graph import graph
 from core.evidence_store import evidence
 from core.knowledge_base import kb
 from core.orchestrator import Orchestrator, _ALL_AGENTS
+from core.telemetry import telemetry
+from core.tracing import init_tracing
 
 log = logging.getLogger(__name__)
+
+# Initialise tracing — no-op unless OTel + OTEL_EXPORTER_OTLP_ENDPOINT are set (5C)
+init_tracing()
 
 app = FastAPI(
     title="Red Team AI Agent System",
@@ -155,3 +165,103 @@ async def get_latest_report(_=Depends(verify_token)):
     if not reports:
         raise HTTPException(status_code=404, detail="No reports generated yet")
     return {"report": reports[0].read_text(), "file": reports[0].name}
+
+
+# ── Live dashboard (5C) ─────────────────────────────────────────────────────────
+
+def _event_payload() -> dict:
+    """A snapshot of live engagement state for the dashboard."""
+    return {
+        "phase": kb.get_state(),
+        "telemetry": telemetry.summary(),
+        "findings": evidence.get_findings(min_severity="medium")[-25:],
+        "graph": graph.stats(),
+        "ts": time.time(),
+    }
+
+
+async def _event_stream(interval: float = 2.0, max_iterations: Optional[int] = None):
+    """Server-sent-events generator — emits the live payload every `interval` s."""
+    count = 0
+    while max_iterations is None or count < max_iterations:
+        yield f"data: {json.dumps(_event_payload(), default=str)}\n\n"
+        count += 1
+        if max_iterations is not None and count >= max_iterations:
+            break
+        await asyncio.sleep(interval)
+
+
+def _dashboard_html() -> str:
+    return _DASHBOARD_HTML
+
+
+@app.get("/events")
+async def events():
+    """Live SSE stream of phase, telemetry, findings, and graph stats. Open (no
+    header auth) so a browser EventSource can connect, like /health."""
+    return StreamingResponse(_event_stream(), media_type="text/event-stream")
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard():
+    """A single static page that renders the live engagement (no build step)."""
+    return _dashboard_html()
+
+
+_DASHBOARD_HTML = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Red Team — Live Engagement</title>
+<style>
+  body { background:#0b0e14; color:#cdd6f4; font:14px/1.5 ui-monospace,Menlo,Consolas,monospace; margin:0; padding:20px; }
+  h1 { color:#f38ba8; font-size:18px; margin:0 0 16px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-bottom:16px; }
+  .card { background:#11151c; border:1px solid #1e2530; border-radius:8px; padding:12px 14px; }
+  .card .k { color:#7f849c; font-size:11px; text-transform:uppercase; letter-spacing:.05em; }
+  .card .v { color:#a6e3a1; font-size:22px; margin-top:4px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:4px 8px; border-bottom:1px solid #1e2530; }
+  th { color:#7f849c; font-weight:normal; }
+  .sev-critical{color:#f38ba8;font-weight:bold} .sev-high{color:#fab387} .sev-medium{color:#f9e2af}
+  h2 { color:#89b4fa; font-size:13px; text-transform:uppercase; letter-spacing:.05em; margin:18px 0 8px; }
+  #conn { float:right; font-size:12px; color:#7f849c; }
+</style>
+</head>
+<body>
+<h1>RED TEAM — LIVE ENGAGEMENT <span id="conn">connecting…</span></h1>
+<div class="grid">
+  <div class="card"><div class="k">Phase</div><div class="v" id="phase">—</div></div>
+  <div class="card"><div class="k">Cost (USD)</div><div class="v" id="cost">—</div></div>
+  <div class="card"><div class="k">API calls</div><div class="v" id="calls">—</div></div>
+  <div class="card"><div class="k">Cache hit</div><div class="v" id="cache">—</div></div>
+  <div class="card"><div class="k">Graph nodes</div><div class="v" id="nodes">—</div></div>
+</div>
+<h2>Per-agent</h2>
+<table><thead><tr><th>Agent</th><th>Calls</th><th>Tokens in/out</th><th>Cost</th></tr></thead><tbody id="agents"></tbody></table>
+<h2>Recent findings</h2>
+<table><thead><tr><th>Time</th><th>Agent</th><th>Target</th><th>Action</th><th>Severity</th></tr></thead><tbody id="findings"></tbody></table>
+<script>
+const $ = id => document.getElementById(id);
+const es = new EventSource('/events');
+es.onopen = () => { $('conn').textContent = 'live'; $('conn').style.color = '#a6e3a1'; };
+es.onerror = () => { $('conn').textContent = 'reconnecting…'; $('conn').style.color = '#f38ba8'; };
+es.onmessage = e => {
+  const d = JSON.parse(e.data);
+  const t = (d.telemetry && d.telemetry.total) || {};
+  $('phase').textContent = d.phase || '—';
+  $('cost').textContent = '$' + (t.cost_usd || 0).toFixed(4);
+  $('calls').textContent = t.api_calls || 0;
+  $('cache').textContent = Math.round((t.cache_hit_rate || 0) * 100) + '%';
+  $('nodes').textContent = (d.graph && d.graph.nodes) || 0;
+  const ba = (d.telemetry && d.telemetry.by_agent) || {};
+  $('agents').innerHTML = Object.values(ba).map(a =>
+    `<tr><td>${a.agent}</td><td>${a.api_calls}</td><td>${a.input_tokens}/${a.output_tokens}</td><td>$${(a.cost_usd||0).toFixed(4)}</td></tr>`).join('');
+  $('findings').innerHTML = (d.findings || []).slice().reverse().map(f => {
+    const ts = new Date((f.timestamp||0)*1000).toLocaleTimeString();
+    return `<tr><td>${ts}</td><td>${f.agent||''}</td><td>${f.target||'-'}</td><td>${(f.action||'').slice(0,60)}</td><td class="sev-${f.severity}">${f.severity||''}</td></tr>`;
+  }).join('');
+};
+</script>
+</body>
+</html>"""
