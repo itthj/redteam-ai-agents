@@ -24,6 +24,7 @@ from typing import Callable, Optional
 
 from agents.phase_agents import KALI_PHASES, PhaseAgent
 from config.settings import settings
+from core.attack_graph import graph
 from core.base_agent import BaseAgent
 from core.evidence_store import evidence
 from core.knowledge_base import kb
@@ -46,6 +47,16 @@ _AGENT_PHASES = {
 _DEEP_AGENTS = ["recon", "scanner", "vuln", "exploit", "post_exploit",
                 "forensics", "reporting"]
 _ALL_AGENTS = _DEEP_AGENTS + sorted(KALI_PHASES)
+
+
+def _last_host_on_path(path) -> Optional[str]:
+    """Extract the target host ip from a graph path (the host whose creds reach the goal)."""
+    for node in reversed(path or []):
+        if node.startswith("cred:") and "@" in node:
+            return node.split("@", 1)[1]
+        if node.startswith("host:"):
+            return node.split("host:", 1)[1]
+    return None
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -88,6 +99,8 @@ Kill-chain phase agents (one per Kali category 01–15):
   impact                — assess and document impact (non-destructive)
 
 METHODOLOGY (adapt as findings dictate — you are not bound to a fixed order):
+  Consult the attack graph between steps — next_best_action returns a ranked
+  list of moves and query_attack_graph answers path questions — then choose.
   1. Recon the authorized scope to map the attack surface.
   2. Scan discovered hosts for open ports and services.
   3. Assess vulnerabilities on the services that matter.
@@ -101,6 +114,8 @@ RULES:
 - Give each agent a SPECIFIC, detailed task — not a vague one-liner.
 - Read each agent's findings before deciding the next delegation.
 - Call get_engagement_status whenever you need the current knowledge base.
+- Before each delegation, call next_best_action and justify your choice against
+  the returned ranking (advisory — you still decide).
 - Stay strictly within the authorized scope. Never request destructive actions.
 - Finish by delegating to the reporting agent, then summarise the engagement.
 """
@@ -144,6 +159,28 @@ RULES:
                 "required": ["phase"],
             },
         },
+        {
+            "name": "query_attack_graph",
+            "description": "Ask the attack graph a path/relationship question "
+                           "(e.g. 'shortest path to domain admin', 'which hosts are "
+                           "reachable but unowned'). Returns paths and node sets.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "question": {"type": "string",
+                                 "description": "The graph question in plain English"},
+                },
+                "required": ["question"],
+            },
+        },
+        {
+            "name": "next_best_action",
+            "description": "Score the attack graph and return a RANKED list of next "
+                           "moves ({agent, target, rationale, score}) — crown-jewel "
+                           "exploits, credential paths, pivot frontiers. Advisory: "
+                           "you still choose.",
+            "input_schema": {"type": "object", "properties": {}},
+        },
     ]
 
     def __init__(self, get_agent: Callable[[str], BaseAgent]) -> None:
@@ -155,6 +192,8 @@ RULES:
             "delegate": self._delegate,
             "get_engagement_status": self._get_status,
             "set_mission_phase": self._set_phase,
+            "query_attack_graph": self._query_attack_graph,
+            "next_best_action": self._next_best_action,
         }
 
     async def _delegate(self, agent: str, task: str) -> dict:
@@ -185,6 +224,70 @@ RULES:
     def _set_phase(self, phase: str) -> dict:
         kb.set_state(phase)
         return {"mission_phase": phase}
+
+    # ── Graph-driven planning (2B) ──────────────────────────────────────────────
+
+    def _query_attack_graph(self, question: str = "") -> dict:
+        """Answer a path/relationship question from the attack graph (2A)."""
+        q = (question or "").lower()
+        if any(w in q for w in ("path", "domain", "admin", "crown", "goal")):
+            return {
+                "question": question,
+                "shortest_path_to_domain_admin": graph.shortest_path_to("domain_admin"),
+                "high_value_unexploited": graph.high_value_unexploited(),
+            }
+        if any(w in q for w in ("reach", "unowned", "pivot", "host")):
+            return {
+                "question": question,
+                "reachable_unowned_hosts": graph.reachable_unowned_hosts(),
+            }
+        return {
+            "question": question,
+            "high_value_unexploited": graph.high_value_unexploited(),
+            "reachable_unowned_hosts": graph.reachable_unowned_hosts(),
+            "shortest_path_to_domain_admin": graph.shortest_path_to("domain_admin"),
+            "graph": graph.stats(),
+        }
+
+    def _next_best_action(self) -> dict:
+        """Rank the next moves from the attack graph — advisory input to the planner."""
+        suggestions: list[dict] = []
+        high_value = graph.high_value_unexploited()
+        hv_ips = {hv["ip"] for hv in high_value}
+
+        # 1. Crown-jewel unexploited services → exploit (CVSS-weighted, capped < cred path).
+        for hv in high_value:
+            suggestions.append({
+                "agent": "exploit",
+                "target": hv["ip"],
+                "rationale": f"{hv['service'] or 'service'} on {hv['ip']}:{hv['port']} has "
+                             f"{hv['vuln_count']} vuln(s), max CVSS {hv['max_cvss']} — unexploited",
+                "score": round(min(hv["max_cvss"], 10.0) / 10.0 * 0.8, 3),
+            })
+
+        # 2. An existing credential path to domain admin → walk it (lateral movement).
+        path = graph.shortest_path_to("domain_admin")
+        if path:
+            suggestions.append({
+                "agent": "lateral_movement",
+                "target": _last_host_on_path(path),
+                "rationale": "a credential path to domain_admin already exists in the graph",
+                "score": 0.9,
+            })
+
+        # 3. Pivot frontier — hosts we can reach but haven't characterised → scan.
+        for ip in graph.reachable_unowned_hosts():
+            if ip in hv_ips:
+                continue
+            suggestions.append({
+                "agent": "scanner",
+                "target": ip,
+                "rationale": f"{ip} is reachable but not yet exploited — scan and assess it",
+                "score": 0.3,
+            })
+
+        suggestions.sort(key=lambda s: s["score"], reverse=True)
+        return {"suggestions": suggestions, "count": len(suggestions)}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
