@@ -278,6 +278,17 @@ clean (`evidence --verify`).
 
 ---
 
+## Tradecraft memory
+
+With `ENABLE_TRADECRAFT_MEMORY=true`, the orchestrator distils reusable lessons
+(service profile → technique → outcome) at the end of each engagement and recalls
+the relevant ones into the planner's first message on similar future targets.
+Lessons are redacted (no IPs, hostnames, or credentials), stored per-operator under
+`data/memory/` (JSONL; keyword recall), and exposed to the planner via a
+`recall_tradecraft` tool. Off by default.
+
+---
+
 ## Testing
 
 ```bash
