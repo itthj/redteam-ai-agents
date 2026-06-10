@@ -26,6 +26,7 @@ from agents.phase_agents import KALI_PHASES, PhaseAgent
 from config.settings import settings
 from core.attack_graph import graph
 from core.base_agent import BaseAgent
+from core.checkpoint import checkpoint
 from core.evidence_store import evidence
 from core.knowledge_base import kb
 from core.telemetry import telemetry
@@ -385,8 +386,13 @@ class Orchestrator:
 
     # ── Mode 2: autonomous planning ───────────────────────────────────────────
 
-    async def run_autonomous(self, objective: str, targets: list[str]) -> dict:
-        """Let the OrchestratorAgent plan and delegate the engagement itself."""
+    async def run_autonomous(self, objective: str, targets: list[str],
+                             resume_engagement: Optional[str] = None) -> dict:
+        """Let the OrchestratorAgent plan and delegate the engagement itself.
+
+        resume_engagement (5B): rehydrate that engagement's latest checkpoint and
+        continue the planner's conversation from there.
+        """
         await self._startup(targets, ["autonomous"], mode="autonomous")
         kb.set_state("autonomous")
 
@@ -397,7 +403,35 @@ class Orchestrator:
             f"Plan and execute the engagement. Delegate to specialist agents, "
             f"review their findings, and produce a final report."
         )
-        final = await planner.run(task)
+
+        # 5B: rehydrate a prior planner conversation, and checkpoint each round.
+        resume_messages = None
+        if resume_engagement:
+            snap = checkpoint.load(resume_engagement)
+            if snap:
+                resume_messages = snap.get("orchestrator_messages")
+                log.info("[ORCH] resuming %s from checkpoint seq %s",
+                         resume_engagement, snap.get("seq"))
+
+        def _save(messages: list) -> None:
+            checkpoint.save(
+                settings.engagement_id,
+                kb_snapshot=kb.snapshot(),
+                mission_state=kb.get_state(),
+                orchestrator_messages=messages,
+                telemetry=telemetry.summary(),
+                graph_export=graph.export(),
+                objective=objective,
+                targets=targets,
+            )
+
+        try:
+            final = await planner.run(task, resume_messages=resume_messages,
+                                      checkpoint_cb=_save)
+        except KeyboardInterrupt:
+            log.warning("[ORCH] interrupted — resume with: python main.py resume %s",
+                        settings.engagement_id)
+            raise
         return self._finish({"mode": "autonomous", "objective": objective,
                              "orchestrator_summary": final})
 

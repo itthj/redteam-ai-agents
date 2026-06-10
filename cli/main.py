@@ -289,5 +289,49 @@ def report(generate):
     console.print(Markdown(reports[0].read_text()))
 
 
+# ── checkpoints / resume (5B) ───────────────────────────────────────────────────
+
+@cli.command()
+def checkpoints():
+    """List resumable engagement checkpoints."""
+    from core.checkpoint import checkpoint as ckpt
+    rows = ckpt.list()
+    if not rows:
+        console.print("[yellow]No checkpoints yet. Autonomous runs checkpoint each "
+                      "delegation under data/checkpoints/.[/yellow]")
+        return
+    table = Table(title="Engagement Checkpoints", border_style="magenta")
+    table.add_column("Engagement", style="bold")
+    table.add_column("Saved")
+    table.add_column("State")
+    table.add_column("#")
+    for r in rows:
+        table.add_row(r["engagement_id"], str(r.get("saved_at") or "-"),
+                      str(r.get("mission_state") or "-"), str(r["checkpoints"]))
+    console.print(table)
+
+
+@cli.command()
+@click.argument("engagement_id")
+def resume(engagement_id):
+    """Resume an interrupted AUTONOMOUS engagement from its latest checkpoint."""
+    from core.checkpoint import checkpoint as ckpt
+    snap = ckpt.load(engagement_id)
+    if not snap:
+        console.print(f"[red]No checkpoint found for {engagement_id}[/red]")
+        sys.exit(1)
+    objective = snap.get("objective", "")
+    targets = snap.get("targets", [])
+    console.print(f"\n[bold]Resuming:[/bold] {engagement_id} "
+                  f"(seq {snap.get('seq')}, state {snap.get('mission_state')})")
+    console.print(f"[bold]Objective:[/bold] {objective}")
+    console.print(f"[bold]Targets:[/bold]   {targets}\n")
+    orch = Orchestrator()
+    result = asyncio.run(orch.run_autonomous(objective, targets,
+                                             resume_engagement=engagement_id))
+    console.print(Panel(result.get("orchestrator_summary", ""),
+                        title="[bold]Resumed Orchestrator Summary[/bold]", border_style="green"))
+
+
 if __name__ == "__main__":
     cli()
