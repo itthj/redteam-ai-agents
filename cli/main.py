@@ -76,13 +76,16 @@ cli.add_command(scope_cmd, name="scope")
 @click.argument("targets", nargs=-1, required=True)
 @click.option("--phases", "-p", default=None, help="Comma-separated phases: recon,scan,vuln_assessment,exploitation,post_exploitation,forensics,reporting")
 @click.option("--note", "-n", default="", help="Mission note / objective")
-def mission(targets, phases, note):
+@click.option("--actor", default=None, help="Emulate a named adversary, e.g. APT29")
+def mission(targets, phases, note, actor):
     """Run a red team mission against TARGETS.
 
     \b
     Example:
       python -m cli.main mission 192.168.1.0/24 --phases recon,scan
     """
+    if actor:
+        settings.engagement_actor = actor
     phase_list = [p.strip() for p in phases.split(",")] if phases else None
     console.print(f"\n[bold]Targets:[/bold] {list(targets)}")
     console.print(f"[bold]Phases:[/bold]  {phase_list or 'full lifecycle'}\n")
@@ -119,7 +122,8 @@ def agent(agent_name, task, context):
 @click.argument("targets", nargs=-1, required=True)
 @click.option("--objective", "-o", required=True,
               help="What the orchestrator should achieve")
-def autonomous(targets, objective):
+@click.option("--actor", default=None, help="Emulate a named adversary, e.g. APT29")
+def autonomous(targets, objective, actor):
     """Run an AUTONOMOUS mission — the orchestrator agent plans and delegates.
 
     \b
@@ -127,6 +131,9 @@ def autonomous(targets, objective):
       python -m cli.main autonomous 192.168.56.0/24 \\
         -o "full pentest, prioritise web and SMB services"
     """
+    if actor:
+        settings.engagement_actor = actor
+        console.print(f"[magenta]Emulating adversary: {actor}[/magenta]")
     console.print(f"\n[bold]Objective:[/bold] {objective}")
     console.print(f"[bold]Targets:[/bold]   {list(targets)}\n")
     console.print("[dim]The orchestrator (Opus 4.7, xhigh effort) is planning…[/dim]\n")
@@ -331,6 +338,23 @@ def resume(engagement_id):
                                              resume_engagement=engagement_id))
     console.print(Panel(result.get("orchestrator_summary", ""),
                         title="[bold]Resumed Orchestrator Summary[/bold]", border_style="green"))
+
+
+# ── actors (2D) ─────────────────────────────────────────────────────────────────
+
+@cli.command()
+def actors():
+    """List the adversary profiles available for emulation (--actor)."""
+    from core.adversary_profiles import list_profiles
+    table = Table(title="Adversary Profiles", border_style="magenta")
+    table.add_column("Name", style="bold")
+    table.add_column("Group")
+    table.add_column("Techniques")
+    table.add_column("Preferred tools")
+    for p in list_profiles():
+        table.add_row(p["name"], p["group_id"], str(p["techniques"]),
+                      ", ".join(p["preferred_tools"]))
+    console.print(table)
 
 
 if __name__ == "__main__":

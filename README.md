@@ -289,6 +289,16 @@ Lessons are redacted (no IPs, hostnames, or credentials), stored per-operator un
 
 ---
 
+## Adversary emulation
+
+Run an engagement as a named threat group: `--actor APT29` (see `python main.py
+actors`). The technique mapper and phase playbooks re-rank toward the actor's
+ATT&CK repertoire, and the actor's tradecraft notes are injected into every agent's
+first message. It's a *soft* constraint — off-profile technique choices are logged
+as evidence, not blocked (destructive actions stay hard-blocked by guardrails).
+
+---
+
 ## Testing
 
 ```bash
