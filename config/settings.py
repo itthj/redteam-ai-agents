@@ -100,6 +100,9 @@ class Settings(BaseSettings):
     # targets. Off by default (no post-run model calls, existing behavior).
     enable_tradecraft_memory: bool = False
 
+    # ── Adversary emulation (2D) ──────────────────────────────────────────────
+    engagement_actor: str = ""    # e.g. "APT29" — empty = no actor constraint
+
     # ── Storage ───────────────────────────────────────────────────────────────
     evidence_dir: Path = Path("./data/evidence")
     reports_dir: Path = Path("./data/reports")

@@ -35,6 +35,7 @@ import anthropic
 
 from config.authorization import OperationType, scope
 from config.settings import settings
+from core.adversary_profiles import get_profile
 from core.evidence_store import evidence
 from core.guardrails import GuardrailViolation, guardrails
 from core.knowledge_base import kb
@@ -235,6 +236,12 @@ class BaseAgent:
         if context:
             parts.append(f"# Additional Context\n```json\n"
                          f"{json.dumps(context, indent=2, default=str)}\n```")
+        # 2D: when emulating a named actor, inject its tradecraft (cache-safe here).
+        profile = get_profile(settings.engagement_actor)
+        if profile:
+            parts.append(f"# Adversary emulation — {profile.name} ({profile.group_id})\n"
+                         f"{profile.tradecraft_notes}\n"
+                         f"Prefer this actor's known TTPs where the objective allows.")
         return "\n\n".join(parts)
 
     def _build_tools(self) -> list[dict]:

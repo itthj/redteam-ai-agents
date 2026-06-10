@@ -36,6 +36,8 @@ import subprocess
 from dataclasses import dataclass
 
 from config.authorization import AuthorizationError, OperationType, scope
+from config.settings import settings
+from core.adversary_profiles import get_profile
 from core.attack_framework import attack
 from core.base_agent import BaseAgent
 from core.evidence_store import evidence
@@ -264,13 +266,18 @@ class PhaseAgent(BaseAgent):
     def _get_playbook(self) -> dict:
         p = self._phase
         seed = f"{p.name} {p.tactic} " + " ".join(p.kali_tools)
-        return {
+        profile = get_profile(settings.engagement_actor)
+        playbook = {
             "phase": p.name,
             "kali_category": f"{p.kali_no:02d} - {p.name}",
             "attack_tactic": p.tactic,
             "recommended_kali_tools": list(p.kali_tools),
-            "relevant_attack_techniques": attack.map_action(seed),
+            "relevant_attack_techniques": attack.map_action(seed, active_profile=profile),
         }
+        if profile:
+            playbook["emulating_actor"] = profile.name
+            playbook["actor_preferred_tools"] = list(profile.preferred_tools)
+        return playbook
 
     def _run_command(self, command: str, rationale: str, target: str | None = None) -> dict:
         op = self._phase.operation
@@ -324,6 +331,13 @@ class PhaseAgent(BaseAgent):
             result={"technique": technique, "phase": self._phase.name},
             severity=severity,
         )
+        # 2D soft constraint — flag (don't block) off-profile technique choices.
+        profile = get_profile(settings.engagement_actor)
+        if profile and technique and technique not in profile.techniques \
+                and technique.split(".")[0] not in profile.techniques:
+            evidence.log(self.NAME, "off_profile_technique",
+                         f"Off-profile technique {technique} chosen "
+                         f"(emulating {profile.name})", target=target, severity="info")
         return {"recorded": True, "target": target, "phase": self._phase.name}
 
 

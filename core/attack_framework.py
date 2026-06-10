@@ -167,27 +167,39 @@ class AttackFramework:
         return _BY_ID.get(technique_id)
 
     @staticmethod
-    def map_action(description: str) -> list[dict]:
+    def map_action(description: str, active_profile=None) -> list[dict]:
         """
         Map a free-text action description to matching ATT&CK techniques.
         Returns a list of {technique_id, name, tactic} dicts (most relevant first).
+
+        When `active_profile` is given (2D), the actor's techniques are ranked
+        ahead of the rest and each result is flagged with "in_profile".
         """
         text = description.lower()
-        scored: list[tuple[int, Technique]] = []
+        prof = None
+        if active_profile is not None:
+            prof = (active_profile.techniques if hasattr(active_profile, "techniques")
+                    else set(active_profile))
+        scored: list[tuple[bool, int, Technique]] = []
         for tech in TECHNIQUES:
             hits = sum(1 for kw in tech.keywords if kw in text)
             if hits:
-                scored.append((hits, tech))
-        scored.sort(key=lambda x: x[0], reverse=True)
-        return [
-            {
+                in_prof = prof is not None and (
+                    tech.id in prof or tech.id.split(".")[0] in prof)
+                scored.append((in_prof, hits, tech))
+        scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
+        out = []
+        for in_prof, _, t in scored:
+            row = {
                 "technique_id": t.id,
                 "name": t.name,
                 "tactic": t.tactic,
                 "tactic_id": TACTICS.get(t.tactic, ""),
             }
-            for _, t in scored
-        ]
+            if prof is not None:
+                row["in_profile"] = in_prof
+            out.append(row)
+        return out
 
     @staticmethod
     def coverage(actions: list[str]) -> dict:
