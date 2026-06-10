@@ -73,6 +73,9 @@ class Settings(BaseSettings):
     censys_api_id: str = ""
     censys_api_secret: str = ""
     nvd_api_key: str = ""
+    greynoise_api_key: str = ""    # 5D — threat-intel MCP
+    virustotal_api_key: str = ""   # 5D — threat-intel MCP
+    siem_token: str = ""           # 5D — SIEM MCP (read-only)
 
     # ── Metasploit RPC ────────────────────────────────────────────────────────
     msfrpc_host: str = "127.0.0.1"

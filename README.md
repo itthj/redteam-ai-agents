@@ -203,7 +203,9 @@ Two servers are wired and ready:
 > ones are exposed. More servers is not better — the right tools is.
 
 The registry lives in `mcp_layer/mcp_config.py` — add your own stdio or SSE
-servers there (each may set a `tool_allowlist`). Discovered MCP tools are
+servers there (each may set a `tool_allowlist`). Five more are templated —
+Nuclei, theHarvester (OSINT), BloodHound (AD), threat-intel (GreyNoise/VirusTotal),
+and SIEM (read-only) — enable any via `MCP_ENABLED_SERVERS`. Discovered MCP tools are
 namespaced `mcp_<prefix>_<tool>` and merged into every agent's tool surface.
 An unreachable server is skipped with a warning — the engagement continues on
 native tools (graceful degradation).

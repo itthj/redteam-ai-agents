@@ -99,6 +99,60 @@ MCP_SERVERS: dict[str, dict] = {
         "description": "Custom MCP server wrapping local security tooling",
         "tool_prefix": "sec",
     },
+
+    # ── 5D fleet — each entry mirrors shodan/cve; tight tool_allowlist per the
+    #    "right tools, not more tools" principle. Unreachable servers skip cleanly.
+
+    # Nuclei — templated vuln scanning (feeds the vuln agent).
+    "nuclei": {
+        "transport": "stdio",
+        "command": "uvx",
+        "args": ["nuclei-mcp-server"],
+        "description": "Templated vulnerability scanning (Nuclei)",
+        "tool_prefix": "nuclei",
+        "tool_allowlist": ["nuclei_scan", "list_templates"],
+    },
+
+    # theHarvester — OSINT emails / subdomains / hosts (feeds recon).
+    "theharvester": {
+        "transport": "stdio",
+        "command": "uvx",
+        "args": ["theharvester-mcp-server"],
+        "description": "OSINT — emails, subdomains, hosts (theHarvester)",
+        "tool_prefix": "osint",
+        "tool_allowlist": ["harvest_emails", "harvest_subdomains", "harvest_hosts"],
+    },
+
+    # BloodHound / AD — read-only attack-path data to enrich the 2A graph.
+    "bloodhound": {
+        "transport": "sse",
+        "url": "http://127.0.0.1:8910/sse",
+        "description": "Active Directory attack paths (BloodHound, read-only)",
+        "tool_prefix": "bh",
+        "tool_allowlist": ["query_paths", "shortest_path_to_da", "list_owned"],
+    },
+
+    # Threat intel — GreyNoise / VirusTotal CVE & IP enrichment (read-only).
+    "threatintel": {
+        "transport": "stdio",
+        "command": "uvx",
+        "args": ["threatintel-mcp-server"],
+        "env": {"GREYNOISE_API_KEY": settings.greynoise_api_key,
+                "VIRUSTOTAL_API_KEY": settings.virustotal_api_key},
+        "description": "GreyNoise / VirusTotal enrichment (read-only)",
+        "tool_prefix": "ti",
+        "tool_allowlist": ["greynoise_ip", "virustotal_hash", "virustotal_domain"],
+    },
+
+    # SIEM — read-only query (Splunk/Elastic/Sentinel); future detection scorecard.
+    "siem": {
+        "transport": "sse",
+        "url": "http://127.0.0.1:8920/sse",
+        "headers": {"Authorization": f"Bearer {settings.siem_token}"},
+        "description": "SIEM read-only query (Splunk/Elastic/Sentinel)",
+        "tool_prefix": "siem",
+        "tool_allowlist": ["search", "list_indexes"],
+    },
 }
 
 
