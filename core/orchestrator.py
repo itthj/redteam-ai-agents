@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+from dataclasses import asdict
 from typing import Callable, Optional
 
 from agents.phase_agents import KALI_PHASES, PhaseAgent
@@ -29,6 +30,7 @@ from core.base_agent import BaseAgent
 from core.checkpoint import checkpoint
 from core.evidence_store import evidence
 from core.knowledge_base import kb
+from core.memory import memory
 from core.telemetry import telemetry
 from core.tracing import span
 from mcp_layer.mcp_bridge import bridge
@@ -183,6 +185,20 @@ RULES:
                            "you still choose.",
             "input_schema": {"type": "object", "properties": {}},
         },
+        {
+            "name": "recall_tradecraft",
+            "description": "Recall lessons from past similar engagements (what worked "
+                           "against comparable services/targets). Returns distilled "
+                           "{situation, action, technique_id, outcome} tips. Advisory.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "situation": {"type": "string",
+                                  "description": "Current situation / target profile to match"},
+                },
+                "required": ["situation"],
+            },
+        },
     ]
 
     def __init__(self, get_agent: Callable[[str], BaseAgent]) -> None:
@@ -196,6 +212,7 @@ RULES:
             "set_mission_phase": self._set_phase,
             "query_attack_graph": self._query_attack_graph,
             "next_best_action": self._next_best_action,
+            "recall_tradecraft": self._recall_tradecraft,
         }
 
     async def _delegate(self, agent: str, task: str) -> dict:
@@ -291,6 +308,13 @@ RULES:
 
         suggestions.sort(key=lambda s: s["score"], reverse=True)
         return {"suggestions": suggestions, "count": len(suggestions)}
+
+    def _recall_tradecraft(self, situation: str) -> dict:
+        """Recall lessons from past engagements matching the current situation (2C)."""
+        if not settings.enable_tradecraft_memory:
+            return {"enabled": False, "lessons": []}
+        lessons = memory.recall(situation, k=5)
+        return {"enabled": True, "lessons": [asdict(lesson) for lesson in lessons]}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -397,12 +421,14 @@ class Orchestrator:
         kb.set_state("autonomous")
 
         planner = OrchestratorAgent(get_agent=self._get_agent)
-        task = (
+        base_task = (
             f"Objective: {objective}\n"
             f"Authorized targets: {', '.join(targets)}\n\n"
             f"Plan and execute the engagement. Delegate to specialist agents, "
             f"review their findings, and produce a final report."
         )
+        # 2C: prepend recalled tradecraft to the FIRST user message (cache-safe).
+        task = self._tradecraft_preamble(objective, targets) + base_task
 
         # 5B: rehydrate a prior planner conversation, and checkpoint each round.
         resume_messages = None
@@ -466,4 +492,34 @@ class Orchestrator:
                  results["telemetry"]["total"]["cost_usd"])
         evidence.log("orchestrator", "mission_complete", "Mission complete",
                      result=results.get("telemetry"), severity="info")
+        self._distill_memory()
         return results
+
+    # ── Tradecraft memory (2C) ──────────────────────────────────────────────────
+
+    def _tradecraft_preamble(self, objective: str, targets: list[str]) -> str:
+        """Recalled lessons for the FIRST user message (cache-safe). Empty when
+        memory is disabled or nothing matches."""
+        if not settings.enable_tradecraft_memory:
+            return ""
+        ctx = (f"{objective} " + " ".join(str(t) for t in targets) + " "
+               + json.dumps(kb.snapshot().get("targets", {}), default=str)[:2000])
+        lessons = memory.recall(ctx, k=3)
+        if not lessons:
+            return ""
+        lines = [f"- {l.situation} → {l.action} ({l.technique_id}) [{l.outcome}]"
+                 for l in lessons]
+        return ("# Recalled tradecraft (from past similar engagements — advisory)\n"
+                + "\n".join(lines) + "\n\n")
+
+    def _distill_memory(self) -> None:
+        """Distil + store lessons at engagement end (best-effort, gated)."""
+        if not settings.enable_tradecraft_memory:
+            return
+        try:
+            lessons = memory.distill(settings.engagement_id, kb.snapshot())
+            if lessons:
+                memory.store(lessons)
+                log.info("[ORCH] distilled %d tradecraft lesson(s)", len(lessons))
+        except Exception as e:  # noqa: BLE001
+            log.warning("[ORCH] memory distill skipped: %s", e)
