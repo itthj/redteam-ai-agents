@@ -1,0 +1,22 @@
+# Minimal dependency set for the FULLY-OFFLINE test suite (131 tests).
+#
+# This is deliberately NOT the full requirements.txt — the production file pulls
+# native-extension packages (cryptography, bcrypt, python-nmap, …) that are slow
+# or flaky to build in CI and are not exercised by the offline tests. CI installs
+# only what the suite actually imports, so it stays fast and green. Keep this in
+# sync with the modules the tests touch; add a package here when a new test needs
+# it. Pinned floors mirror the production requirements.txt.
+
+anthropic>=0.69.0
+pydantic>=2.7.0
+pydantic-settings>=2.2.0
+python-dotenv>=1.0.0
+networkx>=3.0
+opentelemetry-api>=1.20
+opentelemetry-sdk>=1.20
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+httpx>=0.27.0            # used by fastapi.testclient (TestClient) in the dashboard tests
+mcp>=1.2.0
+pytest>=8.2.0
+pytest-asyncio>=0.23.0
