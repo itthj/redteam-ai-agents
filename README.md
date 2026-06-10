@@ -247,6 +247,21 @@ engagement is unaffected (graceful degradation, exactly like the MCP layer).
 
 ---
 
+## Observability
+
+A live **dashboard** and distributed **traces**, both opt-in and graceful:
+
+- `uvicorn api.server:app` → **http://localhost:8000/dashboard** — a single static
+  page (no build step) that streams the current phase, per-agent token/cost, recent
+  findings, and attack-graph size over SSE (`GET /events`). No API key needed.
+- Set `OTEL_EXPORTER_OTLP_ENDPOINT` (and `docker-compose up -d jaeger`, then
+  `pip install opentelemetry-exporter-otlp-proto-http`) to export OpenTelemetry
+  spans for every model turn (`agent.turn`), tool call (`agent.tool`), and
+  delegation (`orchestrator.delegate`) — the Jaeger UI at http://localhost:16686
+  shows the orchestrator→sub-agent→tool tree. Empty endpoint = tracing off (no-op).
+
+---
+
 ## Testing
 
 ```bash
