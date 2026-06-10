@@ -342,6 +342,16 @@ class AttackGraph:
                 "by_kind": by_kind,
             }
 
+    def export(self) -> dict:
+        """A serialisable node/edge dump — used by checkpoints (5B)."""
+        if self._disabled:
+            return {"nodes": [], "edges": []}
+        with self._lock:
+            nodes = [{"id": n, **dict(d)} for n, d in self._g.nodes(data=True)]
+            edges = [{"src": u, "dst": v, "rel": d.get("rel")}
+                     for u, v, d in self._g.edges(data=True)]
+            return {"nodes": nodes, "edges": edges}
+
     def reset(self) -> None:
         with self._lock:
             if not self._disabled:

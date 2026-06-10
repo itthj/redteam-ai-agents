@@ -90,14 +90,23 @@ class BaseAgent:
 
     # ── Public API ────────────────────────────────────────────────────────────
 
-    async def run(self, task: str, context: Optional[dict] = None) -> str:
-        """Run the agent on a task. Returns the agent's final text response."""
+    async def run(self, task: str, context: Optional[dict] = None,
+                  resume_messages: Optional[list] = None, checkpoint_cb=None) -> str:
+        """Run the agent on a task. Returns the agent's final text response.
+
+        resume_messages (5B): rehydrate a prior conversation instead of starting
+        fresh. checkpoint_cb(messages): called after each tool round so a caller
+        can persist resumable state.
+        """
         log.info("[%s] Task: %s", self.NAME.upper(), task[:140])
 
         # Stable system+tools prefix → cached. Volatile KB → first user message.
         system = [{"type": "text", "text": self._system_block, "cache_control": _CACHE}]
         tools = self._build_tools()
-        messages = [{"role": "user", "content": self._build_first_message(task, context)}]
+        # Resume from a checkpoint's conversation if provided (5B); else start fresh.
+        messages = resume_messages or [
+            {"role": "user", "content": self._build_first_message(task, context)}
+        ]
 
         for iteration in range(1, self.MAX_ITERATIONS + 1):
             # ── Budget governor (5A) — checked before each turn ──────────────
@@ -139,6 +148,8 @@ class BaseAgent:
             if stop == "tool_use":
                 tool_results = await self._run_tool_calls(response.content)
                 messages.append({"role": "user", "content": tool_results})
+                if checkpoint_cb is not None:
+                    checkpoint_cb(messages)        # 5B: flush a checkpoint per round
                 continue
 
             if stop == "pause_turn":
