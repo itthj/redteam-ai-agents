@@ -95,6 +95,11 @@ class Settings(BaseSettings):
     # Empty = tracing off (no-op). Needs `opentelemetry-exporter-otlp-proto-http`.
     otel_exporter_otlp_endpoint: str = ""
 
+    # ── Tradecraft memory (2C) ────────────────────────────────────────────────
+    # Opt-in: distil lessons at engagement end and recall them on similar future
+    # targets. Off by default (no post-run model calls, existing behavior).
+    enable_tradecraft_memory: bool = False
+
     # ── Storage ───────────────────────────────────────────────────────────────
     evidence_dir: Path = Path("./data/evidence")
     reports_dir: Path = Path("./data/reports")
