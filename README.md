@@ -262,6 +262,22 @@ A live **dashboard** and distributed **traces**, both opt-in and graceful:
 
 ---
 
+## Resumable runs
+
+Autonomous engagements checkpoint the planner's conversation (plus KB snapshot,
+telemetry, and graph export) under `data/checkpoints/<engagement>/` after every
+delegation. If a run is killed (crash, Ctrl-C, API outage), resume it:
+
+```bash
+python main.py checkpoints              # list resumable engagements
+python main.py resume ENG-2026-001      # continue from the latest checkpoint
+```
+
+The evidence chain and KB persist independently, so a resumed run still verifies
+clean (`evidence --verify`).
+
+---
+
 ## Testing
 
 ```bash
