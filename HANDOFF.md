@@ -25,11 +25,11 @@ and degrades gracefully if an optional dependency/backend is missing (the
 
 ## 2. Current state (the single most important section)
 
-- **Branch `main` is at `3547943`** and contains all 10 workstreams (fast-forward
-  merge of the stacked `feat/*` branches). Working tree clean.
-- **NOT pushed to `origin`.** The merge is local only. `origin/main` is still at the
-  pre-build commit `47b3fd8`. Pushing is an outward-facing action — get explicit OK.
-- **The 10 `feat/*` branches still exist** locally (merged, safe to delete after push).
+- **Branch `main` is at `32362b5`** — all 10 workstreams plus the 2026-06-10
+  hardening pass (model 4.8 reconcile, CI gate, API CORS). Working tree clean.
+- **PUSHED to `origin/main`** (2026-06-10): `47b3fd8..32362b5`. `origin` now carries the
+  full build; GitHub Actions CI runs the offline suite on every push/PR.
+- **The 10 `feat/*` branches still exist** locally (merged, safe to delete; never pushed).
 - **Test suite: 131 passing, fully offline** (no API key, no network — the Anthropic
   client and all external tools/backends are mocked). One benign Starlette/`TestClient`
   deprecation warning. **This offline guarantee is sacred — never add a test that needs
@@ -147,17 +147,21 @@ wire real ones or document them as bring-your-own.
 
 ### Tier 3 — Hardening (before any networked/shared deployment)
 
-**4.8 — API security.** `api/server.py`: `/dashboard` and `/events` are unauthenticated
-and CORS is `allow_origins=["*"]`. Fine for localhost; lock both down before exposing
-the API on a network. Other routes already require `x-api-key` when `api_secret_key`
-is set.
+**4.8 — API security. [PARTLY DONE 2026-06-10]** CORS origins are now configurable via
+`API_CORS_ORIGINS` (default `"*"`; set explicit origins to lock down a networked
+deployment), and the spec-invalid `allow_origins=["*"]` + `allow_credentials=True` combo
+is fixed (credentials auto-disable under the wildcard). Other routes already require
+`x-api-key` when `api_secret_key` is set. STILL OPEN by design: `/dashboard` and `/events`
+have no header auth so a browser `EventSource` can connect — bind to localhost or front
+with a reverse proxy before exposing on a network.
 
 **4.9 — Secrets & OneDrive.** Resolve §2's OneDrive issue: de-sync the folder or move
 the repo off the synced path. Rotate any key that has touched the synced `.env`.
 
-**4.10 — CI.** Wire the offline suite into GitHub Actions (`python -m pytest`). The
-no-API-key guarantee makes this trivial and high-value — it locks in the 131 tests as a
-regression gate. Pin the Python version (3.12).
+**4.10 — CI. [DONE 2026-06-10]** `.github/workflows/ci.yml` runs the offline suite on
+Python 3.12 for every push/PR to main (checkout@v6 + setup-python@v6). Installs the new
+minimal `requirements-test.txt` (not the native-heavy full `requirements.txt`) so CI stays
+fast/green. The 131 tests are now a regression gate; README carries the status badge.
 
 **4.11 — Model/pricing reconcile. [DONE 2026-06-10]** Default bumped opus-4-7 → `claude-opus-4-8`
 (`config/settings.py::claude_model`, `.env.example`); added `"claude-opus-4-8": (5.00, 25.00)`
@@ -167,7 +171,9 @@ default and drop the new pricing key.
 
 ### Tier 4 — Polish
 
-**4.12 —** Push `main` to `origin`; delete the 10 merged `feat/*` branches.
+**4.12 — [PUSH DONE 2026-06-10]** `main` pushed to `origin` (`47b3fd8..32362b5`).
+Remaining: delete the 10 merged local `feat/*` branches if you want the cleanup (left in
+place — harmless, and they were never pushed).
 **4.13 —** Report export beyond markdown/json (PDF/HTML — `jinja2` is already a dep).
 **4.14 —** Per-epic `docs/` pages; update the README architecture diagram to show the
 Attack Graph / Memory / Tracing in the SHARED CORE box (partially done).
