@@ -68,6 +68,12 @@ class Settings(BaseSettings):
     compact_history: bool = False
     compact_after_chars: int = 60000
 
+    # ── Finding lifecycle (C2) ────────────────────────────────────────────────
+    # When True, only HUMAN-APPROVED findings may be reported or sent (the strict
+    # candidate→confirmed→approved workflow). Default False keeps existing behavior
+    # (report everything) — non-breaking; opt in for the gated workflow.
+    require_finding_approval: bool = False
+
     # ── Engagement Authorization ──────────────────────────────────────────────
     authorized_targets: str = ""
     engagement_id: str = "ENG-UNKNOWN"
