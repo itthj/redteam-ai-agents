@@ -91,6 +91,21 @@ MCP_SERVERS: dict[str, dict] = {
         "tool_prefix": "cve",
     },
 
+    # ── Web application testing (C1) — OWASP ZAP + Nuclei, in-repo server ─────
+    # Spider / AJAX spider / active scan / alerts (via the zaproxy client) + Nuclei
+    # (subprocess). Active scan & nuclei are intrusive → gated by scope + the
+    # WEBAPP_ACTIVE_SCAN_AUTHORIZED written-authorization flag inside the handlers.
+    # Degrades gracefully if ZAP/nuclei are absent. Also used natively by webapp_agent.
+    "webapp": {
+        "transport": "stdio",
+        "command": _PY,
+        "args": ["-m", "mcp_layer.servers.zap_server"],
+        "description": "Web app testing — OWASP ZAP (spider/active scan/alerts) + Nuclei",
+        "tool_prefix": "webapp",
+        "tool_allowlist": ["zap_spider", "zap_ajax_spider", "zap_active_scan",
+                           "zap_alerts", "nuclei_scan"],
+    },
+
     # ── Custom security-tool server (template — you build this) ───────────────
     "sectools": {
         "transport": "stdio",

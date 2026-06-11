@@ -49,7 +49,7 @@ _AGENT_PHASES = {
 }
 
 # Deep bespoke agents + the 11 Kali-aligned phase agents = full roster
-_DEEP_AGENTS = ["recon", "scanner", "vuln", "exploit", "post_exploit",
+_DEEP_AGENTS = ["recon", "scanner", "vuln", "webapp", "exploit", "post_exploit",
                 "forensics", "reporting"]
 _ALL_AGENTS = _DEEP_AGENTS + sorted(KALI_PHASES)
 
@@ -85,6 +85,7 @@ Deep agents:
   recon         — DNS, OSINT, Shodan, subdomain enumeration
   scanner       — nmap port scanning and service fingerprinting
   vuln          — CVE correlation, CVSS scoring, NSE vuln scripts
+  webapp        — web app testing (OWASP ZAP + Nuclei), mapped to OWASP Top 10 / WSTG
   exploit       — controlled exploitation (authorization-gated)
   post_exploit  — enumeration, privesc analysis, lateral-movement mapping
   forensics     — timeline, MITRE ATT&CK mapping, artifact collection
@@ -343,6 +344,9 @@ class Orchestrator:
             elif name == "vuln":
                 from agents.vuln_agent import VulnAgent
                 self._agents[name] = VulnAgent()
+            elif name == "webapp":
+                from agents.webapp_agent import WebAppAgent
+                self._agents[name] = WebAppAgent()
             elif name == "exploit":
                 from agents.exploit_agent import ExploitAgent
                 self._agents[name] = ExploitAgent()
