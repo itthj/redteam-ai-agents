@@ -225,7 +225,7 @@ callers get no privileged path around the safety layer.
 **Deterministic** (`run_mission`) — agents run in a fixed phase order. Predictable
 and repeatable; good for recurring assessments.
 
-**Autonomous** (`run_autonomous`) — the `OrchestratorAgent` (Opus 4.7, `xhigh`
+**Autonomous** (`run_autonomous`) — the `OrchestratorAgent` (Opus 4.8, `xhigh`
 effort) treats each specialist agent as a *tool*, reasons about findings between
 delegations, and decides what to do next. This is the agents-as-tools multi-agent
 pattern.

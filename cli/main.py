@@ -136,7 +136,7 @@ def autonomous(targets, objective, actor):
         console.print(f"[magenta]Emulating adversary: {actor}[/magenta]")
     console.print(f"\n[bold]Objective:[/bold] {objective}")
     console.print(f"[bold]Targets:[/bold]   {list(targets)}\n")
-    console.print("[dim]The orchestrator (Opus 4.7, xhigh effort) is planning…[/dim]\n")
+    console.print("[dim]The orchestrator (Opus 4.8, xhigh effort) is planning…[/dim]\n")
 
     orch = Orchestrator()
     result = asyncio.run(orch.run_autonomous(objective, list(targets)))

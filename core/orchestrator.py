@@ -8,7 +8,7 @@ Mission control. Two ways to run an engagement:
      auditable, good for repeatable assessments.
 
   2. AUTONOMOUS     — run_autonomous(objective, targets)
-     The OrchestratorAgent (Claude Opus 4.7, xhigh effort) plans the
+     The OrchestratorAgent (Claude Opus 4.8, xhigh effort) plans the
      engagement itself: it treats each specialist agent as a TOOL, reasons
      about findings between delegations, and decides what to do next.
      This is the "agents-as-tools" multi-agent pattern.

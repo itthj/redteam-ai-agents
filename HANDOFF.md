@@ -1,6 +1,6 @@
 # HANDOFF — `redteam-ai-agents`
 
-**Last updated:** 2026-06-10
+**Last updated:** 2026-06-11
 **Purpose:** Bring a fresh session/engineer up to speed cold. Read this top to bottom,
 then `CLAUDE.md` (standing build protocol) and `IMPLEMENTATION_PLAN.md` (full design).
 
@@ -25,10 +25,12 @@ and degrades gracefully if an optional dependency/backend is missing (the
 
 ## 2. Current state (the single most important section)
 
-- **Branch `main` is at `32362b5`** — all 10 workstreams plus the 2026-06-10
-  hardening pass (model 4.8 reconcile, CI gate, API CORS). Working tree clean.
-- **PUSHED to `origin/main`** (2026-06-10): `47b3fd8..32362b5`. `origin` now carries the
-  full build; GitHub Actions CI runs the offline suite on every push/PR.
+- **Branch `main` carries everything, pushed to `origin/main`.** All 10 workstreams,
+  the 2026-06-10 hardening (model 4.8 reconcile, CI gate, API CORS), and the
+  2026-06-11 quality pass (Ruff lint gate, pip-audit dep-CVE scan, Dependabot,
+  SECURITY.md). Working tree clean.
+- **CI is three jobs — all green on GitHub:** offline test suite, Ruff lint, and
+  pip-audit dependency audit (`.github/workflows/ci.yml`). Dependabot is active.
 - **The 10 `feat/*` branches still exist** locally (merged, safe to delete; never pushed).
 - **Test suite: 131 passing, fully offline** (no API key, no network — the Anthropic
   client and all external tools/backends are mocked). One benign Starlette/`TestClient`
@@ -162,6 +164,10 @@ the repo off the synced path. Rotate any key that has touched the synced `.env`.
 Python 3.12 for every push/PR to main (checkout@v6 + setup-python@v6). Installs the new
 minimal `requirements-test.txt` (not the native-heavy full `requirements.txt`) so CI stays
 fast/green. The 131 tests are now a regression gate; README carries the status badge.
+**[EXTENDED 2026-06-11]** CI now has two more jobs: `ruff` lint (config in
+`pyproject.toml`) and `pip-audit` against the declared deps (both green on GitHub).
+Dev tools are pinned in `requirements-dev.txt`; Dependabot (`.github/dependabot.yml`)
+keeps pip + actions current.
 
 **4.11 — Model/pricing reconcile. [DONE 2026-06-10]** Default bumped opus-4-7 → `claude-opus-4-8`
 (`config/settings.py::claude_model`, `.env.example`); added `"claude-opus-4-8": (5.00, 25.00)`

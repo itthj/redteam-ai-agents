@@ -4,7 +4,7 @@ core/base_agent.py
 BaseAgent — the foundation every specialized agent inherits from.
 
 State-of-the-art Claude integration:
-  • Model            — Claude Opus 4.7 (configurable per agent)
+  • Model            — Claude Opus 4.8 (configurable per agent)
   • Adaptive thinking — Claude decides reasoning depth; summaries captured
   • Effort           — `xhigh` for the orchestrator, `high` for sub-agents
   • Streaming        — every turn streamed; avoids HTTP timeouts on long output
