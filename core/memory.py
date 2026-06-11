@@ -128,14 +128,26 @@ class TradecraftMemory:
     # ── read ───────────────────────────────────────────────────────────────────
 
     def recall(self, context, k: int = 3) -> list[Lesson]:
-        """Top-k lessons by keyword overlap with the context (target profile +
-        services + objective). The JSONL fallback's similarity function."""
+        """Top-k lessons most relevant to the context (target profile + services +
+        objective). Uses embedding similarity when settings.memory_semantic_recall
+        is on AND the backend is available; otherwise keyword overlap — the always-
+        available fallback."""
         ctx = context if isinstance(context, str) else json.dumps(context, default=str)
+        lessons = self.all()
+        if not lessons:
+            return []
+
+        if settings.memory_semantic_recall:
+            from core.embeddings import rank as _semantic_rank
+            ranked = _semantic_rank(ctx, [lesson.search_text() for lesson in lessons])
+            if ranked:
+                return [lessons[i] for i, _score in ranked[:k]]
+
         ctx_tokens = _tokens(ctx)
         if not ctx_tokens:
             return []
         scored = []
-        for lesson in self.all():
+        for lesson in lessons:
             overlap = len(ctx_tokens & _tokens(lesson.search_text()))
             if overlap:
                 scored.append((overlap, lesson))

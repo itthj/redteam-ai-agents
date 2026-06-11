@@ -65,8 +65,10 @@ Gaps the research surfaces, by value:
 - **[DONE 2026-06-11] Output guardrail hardening** — `guardrails.check_command` now
   base64-decodes command segments and re-scans them, catching destructive payloads
   smuggled past the matcher by encoding (CAI-style). +5 tests.
-- **[LATER] Semantic memory** — embeddings backend behind the existing
-  `TradecraftMemory` interface (needs `sentence-transformers`/`chromadb`; 3.12).
+- **[DONE 2026-06-11] Semantic memory** — `core/embeddings.py` adds optional
+  embedding-based tradecraft recall (sentence-transformers, in-process cosine)
+  behind the `TradecraftMemory` interface; opt-in `MEMORY_SEMANTIC_RECALL`,
+  degrades to keyword overlap when the dep is absent. +5 tests.
 - **[LATER] CTI enrichment** — ingest ATT&CK STIX / Atomic Red Team to enrich the
   attack graph + `next_best_action`.
 - **[LATER] Eval harness** — offline scenario suite + LLM-as-judge scoring

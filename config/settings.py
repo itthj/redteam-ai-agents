@@ -109,6 +109,10 @@ class Settings(BaseSettings):
     # Opt-in: distil lessons at engagement end and recall them on similar future
     # targets. Off by default (no post-run model calls, existing behavior).
     enable_tradecraft_memory: bool = False
+    # opt-in: rank tradecraft recall by embedding similarity (needs sentence-transformers;
+    # degrades to keyword overlap when the dep is absent — see core/embeddings.py)
+    memory_semantic_recall: bool = False
+    embedding_model: str = "all-MiniLM-L6-v2"
 
     # ── Adversary emulation (2D) ──────────────────────────────────────────────
     engagement_actor: str = ""    # e.g. "APT29" — empty = no actor constraint

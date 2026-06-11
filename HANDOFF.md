@@ -32,7 +32,8 @@ and degrades gracefully if an optional dependency/backend is missing (the
 - **CI is three jobs — all green on GitHub:** offline test suite, Ruff lint, and
   pip-audit dependency audit (`.github/workflows/ci.yml`). Dependabot is active.
 - **The 10 `feat/*` branches still exist** locally (merged, safe to delete; never pushed).
-- **Test suite: 174 passing, fully offline** (no API key, no network — the Anthropic
+- **Test suite: 179 passing, fully offline** (also runs green on a fresh Python 3.12
+  venv — the recommended production runtime) (no API key, no network — the Anthropic
   client and all external tools/backends are mocked). One benign Starlette/`TestClient`
   deprecation warning. **This offline guarantee is sacred — never add a test that needs
   network or a key.**
@@ -94,8 +95,9 @@ opt-in `ENABLE_UNTRUSTED_CONTENT_DEFENSE`: prompt-injection detection + spotligh
 of tool output; +13 tests), plus base64-aware guardrail decode-then-rescan that
 catches destructive payloads smuggled past the matcher by encoding, **HTML report
 export**, a **deterministic finding-validator** (anti-hallucination), and opt-in
-**context compaction** for long runs (→ **174** tests total). Full capability
-roadmap in `docs/CAPABILITY_RESEARCH.md`.
+**context compaction** for long runs, and **semantic tradecraft recall** (optional
+embeddings) (→ **179** tests total; the offline suite also passes on a Python 3.12
+venv). Full capability roadmap in `docs/CAPABILITY_RESEARCH.md`.
 
 ---
 
