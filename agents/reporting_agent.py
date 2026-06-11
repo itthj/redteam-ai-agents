@@ -23,6 +23,7 @@ from core.base_agent import BaseAgent
 from core.compliance import ledger, map_finding, rollup
 from core.evidence_store import evidence
 from core.knowledge_base import kb
+from core.report_export import render_html
 
 log = logging.getLogger(__name__)
 
@@ -85,7 +86,7 @@ WRITING RULES:
                 "properties": {
                     "title": {"type": "string"},
                     "content": {"type": "string", "description": "Full report in Markdown"},
-                    "format": {"type": "string", "enum": ["markdown", "json"], "description": "Output format"},
+                    "format": {"type": "string", "enum": ["markdown", "json", "html"], "description": "Output format"},
                 },
                 "required": ["title", "content"],
             },
@@ -195,10 +196,17 @@ WRITING RULES:
         reports_dir = Path(settings.reports_dir)
         reports_dir.mkdir(parents=True, exist_ok=True)
         ts = time.strftime("%Y%m%d_%H%M%S")
-        ext = "md" if format == "markdown" else "json"
+        if format == "html":
+            content = render_html(title, content, meta={
+                "Engagement": settings.engagement_id,
+                "Operator": settings.operator_name,
+            })
+            ext = "html"
+        else:
+            ext = "json" if format == "json" else "md"
         filename = f"{ts}_{title.replace(' ', '_')[:40]}.{ext}"
         out_path = reports_dir / filename
-        with open(out_path, "w") as f:
+        with open(out_path, "w", encoding="utf-8") as f:
             f.write(content)
         log.info("[REPORTING] Report saved: %s", out_path)
         return {
