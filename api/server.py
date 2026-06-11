@@ -25,7 +25,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
@@ -36,6 +36,7 @@ from core.attack_graph import graph
 from core.evidence_store import evidence
 from core.finding_state import finding_state
 from core.knowledge_base import kb
+from core.message_bus import bus
 from core.orchestrator import _ALL_AGENTS, Orchestrator
 from core.telemetry import telemetry
 from core.tracing import init_tracing
@@ -101,6 +102,12 @@ class ApproveRequest(BaseModel):
 
 class RejectRequest(BaseModel):
     reason: str = ""
+
+
+class RunRequest(BaseModel):
+    objective: str = ""
+    targets: list[str] = []
+    mode: str = "autonomous"   # "autonomous" | "mission"
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -207,6 +214,120 @@ async def reject_finding(signature: str, req: RejectRequest, _=Depends(verify_to
     return res
 
 
+# ── Engagements + run control (C4 dashboard) ────────────────────────────────────
+# Single-engagement today (the configured engagement); the shape is a list so the
+# multi-tenant SaaS layer (C7) can extend it without changing the dashboard contract.
+
+_RUNS: dict[str, dict] = {}   # engagement_id → {status, mode, started_at, finished_at, task, error}
+
+
+def _run_status(engagement_id: str) -> dict:
+    rec = _RUNS.get(engagement_id)
+    if not rec:
+        return {"status": "idle"}
+    return {k: v for k, v in rec.items() if k != "task"}
+
+
+def _engagement_detail() -> dict:
+    return {
+        "id": settings.engagement_id,
+        "name": settings.engagement_name,
+        "operator": settings.operator_name,
+        "scope": scope.summary(),
+        "state": kb.get_state(),
+        "run": _run_status(settings.engagement_id),
+        "telemetry": telemetry.summary(),
+        "findings": finding_state.summary(),
+        "targets": len(kb.get_all_targets()),
+    }
+
+
+@app.get("/engagements")
+async def list_engagements(_=Depends(verify_token)):
+    return {"engagements": [_engagement_detail()]}
+
+
+@app.get("/engagements/{engagement_id}")
+async def get_engagement(engagement_id: str, _=Depends(verify_token)):
+    if engagement_id != settings.engagement_id:
+        raise HTTPException(status_code=404, detail=f"Unknown engagement {engagement_id}")
+    return _engagement_detail()
+
+
+@app.post("/engagements/{engagement_id}/run", status_code=202)
+async def run_engagement(engagement_id: str, req: RunRequest, _=Depends(verify_token)):
+    """Start the engagement as a background task (observe it via /events or /ws)."""
+    if engagement_id != settings.engagement_id:
+        raise HTTPException(status_code=404, detail=f"Unknown engagement {engagement_id}")
+    rec = _RUNS.get(engagement_id)
+    if rec and rec.get("status") == "running":
+        raise HTTPException(status_code=409, detail="Engagement is already running")
+
+    targets = req.targets or scope.summary()["authorized_targets"]
+    if not targets:
+        raise HTTPException(status_code=400, detail="No targets and none configured in scope")
+    _RUNS[engagement_id] = {"status": "running", "mode": req.mode,
+                            "objective": req.objective, "started_at": time.time()}
+
+    async def _runner():
+        try:
+            if req.mode == "mission":
+                await _orchestrator.run_mission(targets)
+            else:
+                await _orchestrator.run_autonomous(req.objective, targets)
+            _RUNS[engagement_id]["status"] = "complete"
+        except asyncio.CancelledError:
+            _RUNS[engagement_id]["status"] = "stopped"
+            raise
+        except Exception as e:  # noqa: BLE001 — surface the error in status, don't crash the API
+            _RUNS[engagement_id]["status"] = "error"
+            _RUNS[engagement_id]["error"] = str(e)
+        finally:
+            _RUNS[engagement_id]["finished_at"] = time.time()
+
+    _RUNS[engagement_id]["task"] = asyncio.create_task(_runner())
+    return _run_status(engagement_id)
+
+
+@app.post("/engagements/{engagement_id}/stop")
+async def stop_engagement(engagement_id: str, _=Depends(verify_token)):
+    """Cooperatively stop a running engagement (cancels the background task)."""
+    rec = _RUNS.get(engagement_id)
+    if not rec or rec.get("status") != "running":
+        raise HTTPException(status_code=409, detail="No running engagement to stop")
+    task = rec.get("task")
+    if task is not None:
+        task.cancel()
+    return {"stopping": True, "engagement": engagement_id}
+
+
+# ── Reports ──────────────────────────────────────────────────────────────────────
+
+@app.get("/reports")
+async def list_reports(_=Depends(verify_token)):
+    reports_dir = Path(settings.reports_dir)
+    files = sorted(reports_dir.glob("*.*"), key=lambda p: p.stat().st_mtime, reverse=True)
+    return {"reports": [
+        {"file": p.name, "size_bytes": p.stat().st_size, "modified": p.stat().st_mtime}
+        for p in files if p.suffix in (".md", ".html", ".json")
+    ]}
+
+
+def _is_safe_report_name(name: str) -> bool:
+    """Only a bare filename inside the reports dir — blocks path traversal."""
+    return bool(name) and not ("/" in name or "\\" in name or ".." in name)
+
+
+@app.get("/reports/{name}")
+async def get_report(name: str, _=Depends(verify_token)):
+    if not _is_safe_report_name(name):
+        raise HTTPException(status_code=400, detail="Invalid report name")
+    path = Path(settings.reports_dir) / name
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail=f"Report {name} not found")
+    return {"file": name, "content": path.read_text(encoding="utf-8")}
+
+
 @app.get("/report/latest")
 async def get_latest_report(_=Depends(verify_token)):
     reports_dir = Path(settings.reports_dir)
@@ -224,6 +345,9 @@ def _event_payload() -> dict:
         "phase": kb.get_state(),
         "telemetry": telemetry.summary(),
         "findings": evidence.get_findings(min_severity="medium")[-25:],
+        "finding_states": finding_state.summary(),
+        "run": _run_status(settings.engagement_id),
+        "activity": bus.get_history()[-15:],
         "graph": graph.stats(),
         "ts": time.time(),
     }
@@ -249,6 +373,21 @@ async def events():
     """Live SSE stream of phase, telemetry, findings, and graph stats. Open (no
     header auth) so a browser EventSource can connect, like /health."""
     return StreamingResponse(_event_stream(), media_type="text/event-stream")
+
+
+@app.websocket("/ws")
+async def ws_events(websocket: WebSocket):
+    """Live WebSocket stream of the same dashboard payload (phase, telemetry, findings,
+    finding states, run status, agent activity). Open, like /events."""
+    await websocket.accept()
+    try:
+        while True:
+            await websocket.send_text(json.dumps(_event_payload(), default=str))
+            await asyncio.sleep(2.0)
+    except WebSocketDisconnect:
+        return
+    except Exception as e:  # noqa: BLE001 — never let a stream error crash the worker
+        log.debug("[WS] stream closed: %s", e)
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
