@@ -194,6 +194,10 @@ the finding lifecycle + approval queue (`/findings`, `/findings/queue`,
 `POST /findings/{sig}/approve|reject`), evidence, reports (`/reports`), and live
 streams over SSE (`/events`) and WebSocket (`/ws`).
 
+A **multi-tenant SaaS layer** is mounted under `/saas` (OAuth2/JWT login, RBAC, strict
+tenant isolation, append-only audit; Postgres + Celery in prod) — see
+[`saas/`](saas/README.md). It degrades to sqlite + a synchronous runner in dev.
+
 ### 5. Client dashboard (React/Vite)
 
 A full client-facing dashboard — KPI overview, engagements, the findings table with the

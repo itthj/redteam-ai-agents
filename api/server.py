@@ -70,6 +70,15 @@ app.add_middleware(
 
 _orchestrator = Orchestrator()
 
+# Multi-tenant SaaS layer (C7) — mounted additively under /saas. Guarded so the core
+# API keeps working even if the optional layer fails to import.
+try:
+    from saas.api import router as _saas_router
+    app.include_router(_saas_router)
+    log.info("[API] SaaS layer mounted at /saas")
+except Exception as e:  # noqa: BLE001 — graceful degradation
+    log.warning("[API] SaaS layer not mounted: %s", e)
+
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 

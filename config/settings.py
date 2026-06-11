@@ -167,6 +167,18 @@ class Settings(BaseSettings):
     # "https://ops.example.com" — to lock down a networked deployment.
     api_cors_origins: str = "*"
 
+    # ── Multi-tenant SaaS backend (C7) ────────────────────────────────────────
+    # All optional with safe dev defaults. The dev/test backend is sqlite (mirrors
+    # the evidence store); set database_url to a postgres DSN in prod (RLS applied).
+    database_url: str = ""                 # postgres DSN in prod; empty → sqlite
+    saas_db_path: str = ""                 # sqlite path; empty → <knowledge>/../saas.db
+    redis_url: str = ""                    # Celery broker; empty → synchronous fallback
+    vault_addr: str = ""                   # HashiCorp Vault; empty → env secret provider
+    vault_token: str = ""
+    jwt_secret: str = ""                   # empty → secrets provider / api_secret_key
+    jwt_ttl_seconds: int = 3600
+    saas_encryption_key: str = ""          # Fernet key for at-rest secret encryption (optional)
+
     # ── Logging ───────────────────────────────────────────────────────────────
     log_level: str = "INFO"
 

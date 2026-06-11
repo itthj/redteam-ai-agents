@@ -7,6 +7,31 @@ All notable changes to `redteam-ai-agents` are recorded here. This file tracks t
 
 ## [Unreleased]
 
+### C7 — Multi-tenant SaaS backend (`saas/`)
+Added an additive multi-tenant layer over the single-engagement core (core singletons
+untouched). New `saas/` package:
+
+- **`schema.py` / `store.py`** — tenants / users / engagements / findings / evidence_index /
+  audit_log, `tenant_id` on every non-tenant row. Strict **tenant isolation** enforced on
+  every query (cross-tenant fetch → None/404) + PostgreSQL **row-level security** DDL for
+  prod. Append-only **SHA-256-chained audit log**; per-tenant budgets. sqlite for dev/test
+  (mirrors the evidence store), Postgres in prod.
+- **`auth.py`** — PBKDF2 passwords, **JWT (HS256)**, **RBAC** (operator / analyst /
+  client_viewer) with a permission matrix.
+- **`secrets.py` / `crypto.py`** — Vault→env secret provider; Fernet at-rest encryption
+  (both optional, degrade gracefully).
+- **`tasks.py`** — Celery+Redis job runner with a **synchronous fallback** when no broker
+  is configured; status transitions persisted (crash-survivable in prod).
+- **`api.py`** — `/saas` router (OAuth2/JWT login, tenant-scoped + RBAC-guarded engagements,
+  findings, audit), mounted additively into `api/server.py` (guarded import).
+- **Changed** `config/settings.py` / `.env.example` / `requirements.txt` — `DATABASE_URL`,
+  `REDIS_URL`, `VAULT_ADDR/TOKEN`, `JWT_SECRET`, `JWT_TTL_SECONDS`, `SAAS_ENCRYPTION_KEY`;
+  PyJWT added (celery/redis/psycopg/hvac optional).
+- **Tests:** +23 offline tests (`test_saas_store`, `test_saas_auth`, `test_saas_secrets_tasks`,
+  `test_saas_api`) — tenant isolation, RBAC, JWT, audit chain, sync job runner. Suite: 273 → **296**.
+- **Deferred (hooks present):** SQLAlchemy ORM, full evidence-DB-at-rest encryption (SQLCipher/
+  PG TDE), Celery retry tuning. See `saas/README.md`.
+
 ### C6 — Phishing / social engineering (`social_eng` GoPhish MCP server)
 Added an in-repo `social_eng` MCP server wrapping the GoPhish REST API (templates,
 landing pages, sending profiles, target groups, campaigns, click/submit metrics), with
