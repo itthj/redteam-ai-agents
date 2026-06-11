@@ -106,6 +106,20 @@ MCP_SERVERS: dict[str, dict] = {
                            "zap_alerts", "nuclei_scan"],
     },
 
+    # ── Phishing / social engineering (C6) — in-repo GoPhish server ───────────
+    # Strongly gated: campaigns need PHISHING_AUTHORIZED + a named human approver, and
+    # every recipient must be inside an authorized client email domain. Degrades cleanly.
+    "social_eng": {
+        "transport": "stdio",
+        "command": _PY,
+        "args": ["-m", "mcp_layer.servers.gophish_server"],
+        "description": "Phishing / social engineering — GoPhish (authorized, gated)",
+        "tool_prefix": "phish",
+        "tool_allowlist": ["gp_list_campaigns", "gp_campaign_results", "gp_create_template",
+                           "gp_create_landing_page", "gp_create_sending_profile",
+                           "gp_create_group", "gp_launch_campaign"],
+    },
+
     # ── Custom security-tool server (template — you build this) ───────────────
     "sectools": {
         "transport": "stdio",

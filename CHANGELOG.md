@@ -7,6 +7,24 @@ All notable changes to `redteam-ai-agents` are recorded here. This file tracks t
 
 ## [Unreleased]
 
+### C6 — Phishing / social engineering (`social_eng` GoPhish MCP server)
+Added an in-repo `social_eng` MCP server wrapping the GoPhish REST API (templates,
+landing pages, sending profiles, target groups, campaigns, click/submit metrics), with
+the platform's strongest gates.
+
+- **New** `mcp_layer/servers/gophish_server.py` — handlers for template / landing-page /
+  sending-profile / group creation, campaign launch, listing, and results. Campaign
+  launch requires `phishing_authorized` (written-authorization flag) AND a named human
+  approver; target groups are rejected if any recipient is outside an authorized domain.
+  Metrics are written to the KB; every action is evidence-logged. Graceful degradation.
+- **New scope concept** `config/authorization.py` — `scope.authorize_email` /
+  `is_email_authorized` (domain + wildcard-suffix match) + `OperationType.PHISHING`.
+- **Changed** `config/settings.py` / `.env.example` — `GOPHISH_API_URL/KEY`,
+  `AUTHORIZED_EMAIL_DOMAINS`, `PHISHING_AUTHORIZED` (default off) + the domains list property.
+- **Changed** `mcp_config.py` — registered the `social_eng` stdio server.
+- **Tests:** +10 offline tests (`test_gophish_server.py`; GoPhish API mocked). Suite: 263 → **273**.
+- **Kali install:** download the GoPhish release binary, run it, set `GOPHISH_API_URL/KEY`.
+
 ### C5 — Active Directory / Windows testing (`ad` MCP server)
 Added an in-repo `ad` MCP server wrapping BloodHound CE (REST), bloodhound-python,
 NetExec, Impacket, and Certipy for the existing `credential_access` and

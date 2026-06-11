@@ -236,6 +236,8 @@ Two servers are wired and ready:
 - **`ad`** — in-repo BloodHound CE + NetExec + Impacket + Certipy server (C5) for the
   `credential_access` / `lateral_movement` agents. Read/enum scope-gated; state-changing
   `nxc_exec` is written-authorization-gated and guardrail-checked.
+- **`social_eng`** — in-repo GoPhish server (C6). Campaigns require a written-authorization
+  flag + a named human approver, and every recipient must be in an authorized email domain.
 
 > **Efficiency note:** MCP tool schemas ride in every agent's context on every
 > call. The `filesystem` server offers 13 tools; only the 6 useful read-only

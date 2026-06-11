@@ -29,6 +29,7 @@ class OperationType(str, Enum):
     VULNERABILITY_SCAN = "vuln_scan"      # Authenticated / unauthenticated vuln scanning
     WEB_ACTIVE_SCAN = "web_active_scan"   # Intrusive web-app scanning (ZAP active scan, nuclei DAST)
     AD_STATE_CHANGE = "ad_state_change"   # State-changing AD action (NetExec exec, Certipy request)
+    PHISHING = "phishing"                 # Social-engineering / phishing send (outbound to humans)
     EXPLOITATION = "exploitation"         # Active exploitation attempts
     POST_EXPLOITATION = "post_exploit"    # Lateral movement, persistence, data access
     FORENSICS = "forensics"              # Evidence collection, log analysis
@@ -86,6 +87,44 @@ class EngagementScope:
             return True
         except AuthorizationError:
             return False
+
+    # ── Email-domain gate (C6 — phishing) ─────────────────────────────────────
+
+    def authorize_email(self, email: str, agent_name: str = "unknown") -> None:
+        """Raise AuthorizationError unless `email` is inside an authorized client
+        email domain. Phishing targets must be in scope just like network targets."""
+        self._check_expiry()
+        if not settings.authorized_email_domains_list:
+            raise AuthorizationError(
+                "No authorized email domains defined. Set AUTHORIZED_EMAIL_DOMAINS in "
+                ".env before any phishing target may be added."
+            )
+        if not self._is_email_authorized(email):
+            raise AuthorizationError(
+                f"Email '{email}' is NOT in an authorized domain for engagement "
+                f"{settings.engagement_id}. Authorized: "
+                f"{', '.join(settings.authorized_email_domains_list)}"
+            )
+        log.info("[AUTH OK] agent=%s operation=phishing email=%s engagement=%s",
+                 agent_name, email, settings.engagement_id)
+
+    def is_email_authorized(self, email: str) -> bool:
+        """Non-throwing email-domain check."""
+        try:
+            self.authorize_email(email)
+            return True
+        except AuthorizationError:
+            return False
+
+    def _is_email_authorized(self, email: str) -> bool:
+        if "@" not in (email or ""):
+            return False
+        domain = email.rsplit("@", 1)[-1].strip().lower()
+        for entry in settings.authorized_email_domains_list:
+            d = entry.strip().lower().lstrip("@").lstrip("*").lstrip(".")
+            if d and (domain == d or domain.endswith("." + d)):
+                return True
+        return False
 
     # ── Internal checks ───────────────────────────────────────────────────────
 

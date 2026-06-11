@@ -74,6 +74,15 @@ class Settings(BaseSettings):
     # (report everything) — non-breaking; opt in for the gated workflow.
     require_finding_approval: bool = False
 
+    # ── Phishing / social engineering (C6) ────────────────────────────────────
+    # GoPhish REST + the authorized client email domain(s). Campaigns are blocked
+    # unless phishing_authorized is set AND a human approver is named at launch, and
+    # every target must be inside an authorized domain.
+    gophish_api_url: str = ""               # e.g. https://127.0.0.1:3333
+    gophish_api_key: str = ""
+    authorized_email_domains: str = ""      # comma-separated, e.g. "acme.co.ke,*.acme.com"
+    phishing_authorized: bool = False       # written-authorization flag for THIS engagement
+
     # ── Engagement Authorization ──────────────────────────────────────────────
     authorized_targets: str = ""
     engagement_id: str = "ENG-UNKNOWN"
@@ -172,6 +181,11 @@ class Settings(BaseSettings):
     def mcp_server_list(self) -> list[str]:
         """Parsed list of enabled MCP server names."""
         return [s.strip() for s in self.mcp_enabled_servers.split(",") if s.strip()]
+
+    @property
+    def authorized_email_domains_list(self) -> list[str]:
+        """Parsed list of authorized client email domains (C6 phishing)."""
+        return [d.strip() for d in self.authorized_email_domains.split(",") if d.strip()]
 
     def ensure_dirs(self) -> None:
         """Create data directories if they don't exist."""
