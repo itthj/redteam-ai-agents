@@ -51,12 +51,17 @@ Gaps the research surfaces, by value:
   before it re-enters context. Opt-in: `ENABLE_UNTRUSTED_CONTENT_DEFENSE` (default
   off). Wired into `BaseAgent._run_tool_calls`; 13 offline tests. Defense-in-depth
   only — scope gate / guardrails / operator remain authoritative.
-- **[NEXT] Finding validator** — grade each finding against the EvidenceStore/KB
-  (is it evidence-backed? does the CVE/port actually appear?) → confidence score +
-  flag unsupported claims in the report. Deterministic core, optional LLM-as-judge.
-- **[NEXT] Conversation compaction** — when an agent's message history nears a token
-  budget, summarize older turns via the existing fast-model primitive (5A),
-  preserving findings/decisions and clearing redundant tool dumps.
+- **[DONE 2026-06-11] Finding validator** — `core/finding_validator.py` grades each
+  finding against EvidenceStore/KB facts (port scanned? CVE well-formed and present
+  in evidence?) → confidence + verdict; exposed as the reporting agent's
+  `validate_findings` tool, with a prompt rule to label weak findings unverified.
+  +10 tests.
+- **[DONE 2026-06-11] Context compaction** — `BaseAgent._maybe_compact_history`
+  clears old, large tool_result content once history grows past a threshold
+  (structure-preserving tool-result clearing; opt-in `COMPACT_HISTORY`). +4 tests.
+- **[DONE 2026-06-11] HTML report export** — `core/report_export.py` renders the
+  report to a self-contained, print-friendly HTML doc (untrusted text escaped,
+  link schemes allow-listed). `save_report` format enum gains `html`. +11 tests.
 - **[DONE 2026-06-11] Output guardrail hardening** — `guardrails.check_command` now
   base64-decodes command segments and re-scans them, catching destructive payloads
   smuggled past the matcher by encoding (CAI-style). +5 tests.
