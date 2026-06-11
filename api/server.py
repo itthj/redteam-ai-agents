@@ -34,6 +34,7 @@ from config.authorization import scope
 from config.settings import settings
 from core.attack_graph import graph
 from core.evidence_store import evidence
+from core.finding_state import finding_state
 from core.knowledge_base import kb
 from core.orchestrator import _ALL_AGENTS, Orchestrator
 from core.telemetry import telemetry
@@ -92,6 +93,14 @@ class AutonomousRequest(BaseModel):
 class AgentRequest(BaseModel):
     task: str
     context: Optional[dict] = None
+
+
+class ApproveRequest(BaseModel):
+    approver: Optional[str] = None
+
+
+class RejectRequest(BaseModel):
+    reason: str = ""
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -164,6 +173,38 @@ async def run_agent(agent_name: str, req: AgentRequest, _=Depends(verify_token))
         )
     result = await _orchestrator.dispatch(agent_name, req.task, req.context)
     return {"agent": agent_name, "result": result}
+
+
+# ── Finding lifecycle / approval queue (C2) ─────────────────────────────────────
+
+@app.get("/findings")
+async def list_findings(state: Optional[str] = None, _=Depends(verify_token)):
+    """List findings by lifecycle state (candidate/confirmed/approved/rejected)."""
+    return {"summary": finding_state.summary(), "findings": finding_state.list(state)}
+
+
+@app.get("/findings/queue")
+async def findings_queue(_=Depends(verify_token)):
+    """The human-approval queue — confirmed findings awaiting approval."""
+    return {"queue": finding_state.queue()}
+
+
+@app.post("/findings/{signature}/approve")
+async def approve_finding(signature: str, req: ApproveRequest, _=Depends(verify_token)):
+    """Human-approve a confirmed finding so it may be reported/sent."""
+    res = finding_state.approve(signature, approver=req.approver or settings.operator_name)
+    if not res.get("approved"):
+        raise HTTPException(status_code=409, detail=res.get("reason", "cannot approve"))
+    return res
+
+
+@app.post("/findings/{signature}/reject")
+async def reject_finding(signature: str, req: RejectRequest, _=Depends(verify_token)):
+    """Reject a finding (false positive / will not be reported)."""
+    res = finding_state.reject(signature, by=settings.operator_name, reason=req.reason)
+    if not res.get("rejected"):
+        raise HTTPException(status_code=409, detail=res.get("reason", "cannot reject"))
+    return res
 
 
 @app.get("/report/latest")

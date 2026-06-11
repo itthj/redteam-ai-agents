@@ -22,6 +22,7 @@ from config.settings import settings
 from core.base_agent import BaseAgent
 from core.compliance import ledger, map_finding, rollup
 from core.evidence_store import evidence
+from core.finding_state import finding_state
 from core.finding_validator import finding_validator
 from core.knowledge_base import kb
 from core.report_export import render_html
@@ -57,6 +58,9 @@ WRITING RULES:
 - NEVER include real credentials in the report
 - Call validate_findings before finalizing; label any finding flagged "needs-review" or
   "likely-false-positive" as "(unverified — requires manual verification)" and do not overstate it
+- Findings carry a lifecycle state (candidate → confirmed → approved). Call
+  get_findings_by_state to see it. When approval is required, report only APPROVED
+  findings as confirmed; clearly mark anything still candidate/confirmed as not yet client-approved.
 """
 
     TOOLS = [
@@ -112,6 +116,18 @@ WRITING RULES:
             "input_schema": {"type": "object", "properties": {}, "required": []},
         },
         {
+            "name": "get_findings_by_state",
+            "description": "List findings by lifecycle state (candidate/confirmed/approved/"
+                           "rejected) with a summary. Use to report only client-approved "
+                           "findings when approval is required.",
+            "input_schema": {
+                "type": "object",
+                "properties": {"state": {"type": "string",
+                                         "enum": ["candidate", "confirmed", "approved", "rejected"]}},
+                "required": [],
+            },
+        },
+        {
             "name": "validate_findings",
             "description": "Deterministically validate all findings against scan/evidence "
                            "facts (no model call). Returns a confidence + verdict per "
@@ -130,6 +146,7 @@ WRITING RULES:
             "map_to_compliance": self._map_to_compliance,
             "compliance_rollup": self._compliance_rollup,
             "validate_findings": self._validate_findings,
+            "get_findings_by_state": self._get_findings_by_state,
         }
 
     # ── Tool implementations ──────────────────────────────────────────────────
@@ -235,6 +252,10 @@ WRITING RULES:
     def _validate_findings(self) -> dict:
         """Deterministic anti-hallucination grading of all current findings."""
         return finding_validator.validate_all(kb.get_all_targets(), evidence.get_all())
+
+    def _get_findings_by_state(self, state: str | None = None) -> dict:
+        """Findings by lifecycle state (C2) — lets the report ship only approved findings."""
+        return {"summary": finding_state.summary(), "findings": finding_state.list(state)}
 
     def _compliance_rollup(self) -> dict:
         findings = []

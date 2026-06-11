@@ -24,6 +24,7 @@ from config.authorization import OperationType
 from config.settings import settings
 from core.base_agent import BaseAgent
 from core.evidence_store import evidence
+from core.finding_state import finding_state
 from core.knowledge_base import kb
 from core.message_bus import bus
 
@@ -237,7 +238,12 @@ WORKFLOW:
             result=vuln,
             severity=severity,
         )
-        return {"saved": True, "ip": ip, "cve": cve}
+        # C2: register as a CANDIDATE finding (AI agents only ever produce candidates).
+        sig = finding_state.register_candidate({
+            "target": ip, "title": description, "severity": severity, "cve": cve,
+            "cvss": cvss, "port": port, "source": self.NAME,
+        })
+        return {"saved": True, "ip": ip, "cve": cve, "signature": sig, "state": "candidate"}
 
     async def run(self, task: str, context=None) -> str:
         result = await super().run(task, context)

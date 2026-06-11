@@ -50,7 +50,7 @@ _AGENT_PHASES = {
 
 # Deep bespoke agents + the 11 Kali-aligned phase agents = full roster
 _DEEP_AGENTS = ["recon", "scanner", "vuln", "webapp", "exploit", "post_exploit",
-                "forensics", "reporting"]
+                "validation", "forensics", "reporting"]
 _ALL_AGENTS = _DEEP_AGENTS + sorted(KALI_PHASES)
 
 
@@ -88,6 +88,7 @@ Deep agents:
   webapp        — web app testing (OWASP ZAP + Nuclei), mapped to OWASP Top 10 / WSTG
   exploit       — controlled exploitation (authorization-gated)
   post_exploit  — enumeration, privesc analysis, lateral-movement mapping
+  validation    — deterministically re-tests candidate findings → confirms reproduced ones
   forensics     — timeline, MITRE ATT&CK mapping, artifact collection
   reporting     — executive + technical report generation
 
@@ -123,6 +124,8 @@ RULES:
 - Before each delegation, call next_best_action and justify your choice against
   the returned ranking (advisory — you still decide).
 - Stay strictly within the authorized scope. Never request destructive actions.
+- Before reporting, delegate to the validation agent to re-test candidate findings;
+  only reproduced findings become "confirmed", and a human approves before anything ships.
 - Finish by delegating to the reporting agent, then summarise the engagement.
 """
 
@@ -353,6 +356,9 @@ class Orchestrator:
             elif name == "post_exploit":
                 from agents.post_exploit_agent import PostExploitAgent
                 self._agents[name] = PostExploitAgent()
+            elif name == "validation":
+                from agents.validation_agent import ValidationAgent
+                self._agents[name] = ValidationAgent()
             elif name == "forensics":
                 from agents.forensics_agent import ForensicsAgent
                 self._agents[name] = ForensicsAgent()

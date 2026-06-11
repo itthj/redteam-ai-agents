@@ -22,6 +22,7 @@ from typing import Optional
 
 from core.base_agent import BaseAgent
 from core.evidence_store import evidence
+from core.finding_state import finding_state
 from core.knowledge_base import kb
 from core.owasp_map import classify as owasp_classify
 from mcp_layer.servers import zap_server
@@ -127,6 +128,7 @@ WORKFLOW:
                     "port": {"type": "integer"},
                     "description": {"type": "string"},
                     "proof": {"type": "string", "description": "Reproduction evidence (request/response snippet)"},
+                    "template": {"type": "string", "description": "Nuclei template id, if this came from a nuclei hit (enables deterministic re-test)"},
                 },
                 "required": ["target", "title", "severity"],
             },
@@ -155,6 +157,7 @@ WORKFLOW:
         port: Optional[int] = None,
         description: Optional[str] = None,
         proof: Optional[str] = None,
+        template: Optional[str] = None,
     ) -> dict:
         mapping = owasp_classify(alert_name=title, cwe=cwe)
         host = _host(target) or target
@@ -176,7 +179,15 @@ WORKFLOW:
             result={**vuln, "proof": (proof or "")[:500], "candidate": True},
             severity=severity,
         )
+        # C2: register as a CANDIDATE in the finding-state store (separate from the KB
+        # — no KB-schema change). AI agents only ever produce candidates.
+        sig = finding_state.register_candidate({
+            "target": host, "title": title, "severity": severity, "cwe": cwe,
+            "url": url, "port": port, "owasp_id": mapping["owasp_id"],
+            "source": self.NAME, "template": template, "proof": proof,
+        })
         return {
             "recorded": True, "target": host, "title": title,
-            "owasp": mapping["owasp_id"], "wstg": mapping["wstg"], "state": "candidate",
+            "owasp": mapping["owasp_id"], "wstg": mapping["wstg"],
+            "state": "candidate", "signature": sig,
         }

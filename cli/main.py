@@ -296,6 +296,62 @@ def report(generate):
     console.print(Markdown(reports[0].read_text()))
 
 
+# ── findings lifecycle / approval (C2) ──────────────────────────────────────────
+
+@cli.command()
+@click.option("--state", default=None,
+              help="Filter: candidate | confirmed | approved | rejected")
+def findings(state):
+    """List findings by lifecycle state (candidate/confirmed/approved/rejected)."""
+    from core.finding_state import finding_state
+    rows = finding_state.list(state)
+    summary = finding_state.summary()
+    table = Table(title=f"Findings ({state or 'all states'})", border_style="cyan")
+    table.add_column("Signature", style="bold")
+    table.add_column("State")
+    table.add_column("Sev")
+    table.add_column("Target")
+    table.add_column("Title")
+    state_colors = {"candidate": "yellow", "confirmed": "green",
+                    "approved": "bold green", "rejected": "dim red"}
+    for r in rows:
+        st = r.get("state", "candidate")
+        table.add_row(r.get("signature", "")[:12], f"[{state_colors.get(st, '')}]{st}[/]",
+                      r.get("severity", ""), r.get("target") or "-",
+                      (r.get("title") or "")[:50])
+    console.print(table)
+    console.print(f"\n[dim]Totals: {summary['by_state']} | "
+                  f"approval required: {summary['require_approval']}[/dim]")
+
+
+@cli.command()
+@click.argument("signature")
+@click.option("--by", default=None, help="Approver name (defaults to OPERATOR_NAME)")
+def approve(signature, by):
+    """Human-approve a CONFIRMED finding so it can be reported/sent."""
+    from core.finding_state import finding_state
+    res = finding_state.approve(signature, approver=by or settings.operator_name)
+    if res.get("approved"):
+        console.print(f"[green]Approved[/green] {signature} (by {by or settings.operator_name})")
+    else:
+        console.print(f"[red]Not approved:[/red] {res.get('reason')}")
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("signature")
+@click.option("--reason", default="", help="Why this is rejected")
+def reject(signature, reason):
+    """Reject a finding (false positive / will not be reported)."""
+    from core.finding_state import finding_state
+    res = finding_state.reject(signature, by=settings.operator_name, reason=reason)
+    if res.get("rejected"):
+        console.print(f"[yellow]Rejected[/yellow] {signature}")
+    else:
+        console.print(f"[red]Not rejected:[/red] {res.get('reason')}")
+        sys.exit(1)
+
+
 # ── checkpoints / resume (5B) ───────────────────────────────────────────────────
 
 @cli.command()

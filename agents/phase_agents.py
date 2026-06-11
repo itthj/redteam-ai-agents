@@ -41,6 +41,7 @@ from core.adversary_profiles import get_profile
 from core.attack_framework import attack
 from core.base_agent import BaseAgent
 from core.evidence_store import evidence
+from core.finding_state import finding_state
 from core.guardrails import GuardrailViolation, guardrails
 from core.knowledge_base import kb
 
@@ -331,6 +332,11 @@ class PhaseAgent(BaseAgent):
             result={"technique": technique, "phase": self._phase.name},
             severity=severity,
         )
+        # C2: register as a CANDIDATE finding (AI agents only ever produce candidates).
+        finding_state.register_candidate({
+            "target": target, "title": finding, "severity": severity,
+            "technique": technique, "source": self.NAME,
+        })
         # 2D soft constraint — flag (don't block) off-profile technique choices.
         profile = get_profile(settings.engagement_actor)
         if profile and technique and technique not in profile.techniques \
