@@ -1,6 +1,17 @@
-"""Tests for compliance-mapped reporting + retest tracking (5F) — fully offline."""
+"""Tests for compliance-mapped reporting + retest tracking (5F + C3) — fully offline."""
 
-from core.compliance import FindingsLedger, finding_signature, map_finding, rollup
+from core.compliance import (
+    ATTACK_TO_CBK,
+    ATTACK_TO_ISO27001,
+    ATTACK_TO_KDPA,
+    ATTACK_TO_NIST,
+    FRAMEWORKS,
+    FindingsLedger,
+    compliance_appendix,
+    finding_signature,
+    map_finding,
+    rollup,
+)
 
 
 def test_map_finding():
@@ -50,3 +61,59 @@ def test_reporting_compliance_rollup_tool():
     assert out["findings"] >= 1
     assert "nist_800_53" in out["compliance"]
     assert "retest" in out
+
+
+# ── C3: ISO 27001 / CBK / Kenya DPA mapping + compliance appendix ────────────────
+
+def test_map_finding_includes_new_frameworks():
+    m = map_finding("T1190")
+    assert "A.8.8" in m["iso_27001"]      # exploit public-facing → ISO Annex A.8.8
+    assert m["cbk"] == ["CBK-PR"]          # Protect function
+    assert "s.41" in m["kenya_dpa"]        # technical & organisational measures duty
+
+
+def test_kdpa_data_exposure_maps_to_breach_section():
+    assert "s.43" in map_finding("T1041")["kenya_dpa"]   # exfiltration → breach notification
+    assert "s.43" in map_finding("T1486")["kenya_dpa"]   # impact/availability
+
+
+def test_every_mapped_technique_covers_all_named_frameworks():
+    # Full coverage (decision: full compliance) — every technique we score for NIST is
+    # also mapped to ISO 27001, CBK, and Kenya DPA.
+    base = set(ATTACK_TO_NIST)
+    assert base <= set(ATTACK_TO_ISO27001)
+    assert base <= set(ATTACK_TO_CBK)
+    assert base <= set(ATTACK_TO_KDPA)
+
+
+def test_rollup_includes_all_frameworks():
+    r = rollup(["T1078", "T1190", "T1041"])
+    for fw in FRAMEWORKS:
+        assert fw in r
+    assert r["iso_27001"]          # non-empty
+
+
+def test_compliance_appendix_builds_rows_and_rollup():
+    findings = [
+        {"target": "10.0.0.5", "technique": "T1190", "severity": "high", "cvss": 9.1},
+        {"target": "10.0.0.6", "technique": "T1041", "severity": "high", "cvss": 7.5},
+    ]
+    app = compliance_appendix(findings)
+    assert app["frameworks"] == list(FRAMEWORKS)
+    assert len(app["rows"]) == 2
+    assert "Exploitation" in app["ptes_phases"]
+    assert any("A.8.8" in row["iso_27001"] for row in app["rows"])
+    assert "techniques" in app["rollup"]
+
+
+def test_reporting_compliance_appendix_tool():
+    from agents.reporting_agent import ReportingAgent
+    from core.knowledge_base import kb
+
+    kb.add_vulnerability("172.31.9.10", {"cve": "CVE-2024-2", "cvss": 8.1,
+                                         "severity": "high", "port": 443,
+                                         "technique": "T1190"})
+    out = ReportingAgent()._compliance_appendix()
+    assert "kenya_dpa" in out["frameworks"]
+    assert out["rows"]
+    assert any("A.8.8" in r["iso_27001"] for r in out["rows"])

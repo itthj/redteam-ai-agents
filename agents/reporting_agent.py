@@ -20,7 +20,7 @@ from pathlib import Path
 
 from config.settings import settings
 from core.base_agent import BaseAgent
-from core.compliance import ledger, map_finding, rollup
+from core.compliance import compliance_appendix, ledger, map_finding, rollup
 from core.evidence_store import evidence
 from core.finding_state import finding_state
 from core.finding_validator import finding_validator
@@ -41,15 +41,25 @@ class ReportingAgent(BaseAgent):
     SYSTEM_PROMPT = """You are the Reporting Agent in an authorized red-team operation.
 Your job is to synthesize all engagement findings into a clear, professional pentest report.
 
-REPORT STRUCTURE:
-1. Executive Summary (non-technical, risk-focused, for management)
-2. Scope & Methodology
-3. Findings Summary Table (Critical/High/Medium/Low counts + risk score)
-4. Detailed Findings (per vulnerability: description, evidence, impact, remediation)
-5. Attack Path Narrative (how the simulated attack progressed)
-6. MITRE ATT&CK Coverage Map
-7. Remediation Roadmap (prioritised, with effort estimates)
-8. Appendices (raw evidence, timeline, tool output)
+Produce THREE TIERS from the one engagement (structure follows PTES; severity follows CVSS):
+
+TIER 1 — EXECUTIVE SUMMARY (non-technical, for management)
+  - Business risk, overall risk rating, the few things leadership must act on.
+
+TIER 2 — TECHNICAL FINDINGS (for engineers)
+  Anchored on the PTES phases (Intelligence Gathering → Threat Modeling → Vulnerability
+  Analysis → Exploitation → Post-Exploitation):
+  1. Scope & Methodology    2. Findings Summary Table (counts + risk score)
+  3. Detailed Findings (per finding: description, reproducible evidence, CVSS, impact, remediation)
+  4. Attack Path Narrative   5. MITRE ATT&CK Coverage Map   6. Remediation Roadmap
+
+TIER 3 — COMPLIANCE APPENDIX (for auditors / risk & compliance)
+  Call compliance_appendix: map every finding to ISO 27001 Annex A, PCI DSS, the CBK
+  Guidance Note on Cybersecurity, and the Kenya Data Protection Act 2019 (sections), with
+  a per-framework control rollup.
+
+Save each tier with save_report (titles like "<engagement> — Executive Summary",
+"… — Technical Findings", "… — Compliance Appendix").
 
 WRITING RULES:
 - Executive summary: no jargon, focus on business risk
@@ -116,6 +126,13 @@ WRITING RULES:
             "input_schema": {"type": "object", "properties": {}, "required": []},
         },
         {
+            "name": "compliance_appendix",
+            "description": "Build the Tier-3 compliance appendix: every finding mapped to "
+                           "ISO 27001 Annex A, PCI DSS, CBK Guidance Note, and Kenya DPA 2019, "
+                           "plus a per-framework control rollup and the PTES phase backbone.",
+            "input_schema": {"type": "object", "properties": {}, "required": []},
+        },
+        {
             "name": "get_findings_by_state",
             "description": "List findings by lifecycle state (candidate/confirmed/approved/"
                            "rejected) with a summary. Use to report only client-approved "
@@ -145,6 +162,7 @@ WRITING RULES:
             "save_report": self._save_report,
             "map_to_compliance": self._map_to_compliance,
             "compliance_rollup": self._compliance_rollup,
+            "compliance_appendix": self._compliance_appendix,
             "validate_findings": self._validate_findings,
             "get_findings_by_state": self._get_findings_by_state,
         }
@@ -257,7 +275,8 @@ WRITING RULES:
         """Findings by lifecycle state (C2) — lets the report ship only approved findings."""
         return {"summary": finding_state.summary(), "findings": finding_state.list(state)}
 
-    def _compliance_rollup(self) -> dict:
+    def _kb_findings(self) -> list[dict]:
+        """Flatten KB vulnerabilities into compliance-shaped finding dicts."""
         findings = []
         for ip, data in kb.get_all_targets().items():
             for v in data.get("vulnerabilities", []):
@@ -265,11 +284,20 @@ WRITING RULES:
                     "target": ip,
                     "port": v.get("port"),
                     "cve": v.get("cve"),
+                    "cvss": v.get("cvss"),
                     "technique": v.get("technique", "T1190"),
                     "severity": v.get("severity", "info"),
                 })
+        return findings
+
+    def _compliance_rollup(self) -> dict:
+        findings = self._kb_findings()
         return {
             "findings": len(findings),
             "compliance": rollup([f["technique"] for f in findings]),
             "retest": ledger.diff(findings),
         }
+
+    def _compliance_appendix(self) -> dict:
+        """Tier-3 compliance appendix across ISO 27001 / PCI / SOC 2 / CBK / Kenya DPA (C3)."""
+        return compliance_appendix(self._kb_findings())

@@ -66,37 +66,130 @@ ATTACK_TO_SOC2: dict[str, list[str]] = {
     "T1070": ["CC7.2"], "T1562": ["CC7.2"], "T1027": ["CC7.2"],
 }
 
+# ── ISO/IEC 27001:2022 Annex A controls (curated; real Annex A control numbers) ──
+ATTACK_TO_ISO27001: dict[str, list[str]] = {
+    "T1595": ["A.8.8", "A.5.7"], "T1590": ["A.5.7"], "T1592": ["A.5.7"],
+    "T1596": ["A.5.7"], "T1589": ["A.5.7", "A.5.16"],
+    "T1190": ["A.8.8", "A.8.25", "A.8.28"], "T1133": ["A.8.20", "A.5.15", "A.8.5"],
+    "T1078": ["A.5.15", "A.5.16", "A.8.2", "A.8.5"],
+    "T1059": ["A.8.7"], "T1203": ["A.8.8", "A.8.7"],
+    "T1053": ["A.8.9", "A.8.2"], "T1098": ["A.5.18", "A.8.2"], "T1547": ["A.8.9"],
+    "T1548": ["A.8.2"], "T1068": ["A.8.8", "A.8.2"], "T1574": ["A.8.9"],
+    "T1070": ["A.8.15"], "T1027": ["A.8.7", "A.8.16"], "T1562": ["A.8.16", "A.8.7"],
+    "T1110": ["A.8.5", "A.5.17"], "T1003": ["A.5.17", "A.8.2"], "T1555": ["A.5.17"],
+    "T1552": ["A.5.17", "A.8.24"],
+    "T1046": ["A.8.8", "A.8.20"], "T1018": ["A.8.20"], "T1087": ["A.8.2"],
+    "T1083": ["A.8.3"], "T1082": ["A.8.9"],
+    "T1021": ["A.5.15", "A.8.20"], "T1570": ["A.8.22", "A.8.7"],
+    "T1005": ["A.8.12", "A.8.3"], "T1119": ["A.8.12"],
+    "T1071": ["A.8.20", "A.8.23"], "T1572": ["A.8.20", "A.8.22"], "T1041": ["A.8.12", "A.8.16"],
+    "T1486": ["A.8.13", "A.5.29"],
+}
+
+# ── CBK Guidance Note on Cybersecurity (Aug 2017) — NIST-CSF-aligned function domains.
+#    ID=Identify PR=Protect DE=Detect RS=Respond RC=Recover (the GN's structure). ──────
+ATTACK_TO_CBK: dict[str, list[str]] = {
+    "T1595": ["CBK-ID", "CBK-DE"], "T1590": ["CBK-ID"], "T1592": ["CBK-ID"],
+    "T1596": ["CBK-ID"], "T1589": ["CBK-ID"],
+    "T1190": ["CBK-PR"], "T1133": ["CBK-PR"],
+    "T1078": ["CBK-PR"], "T1059": ["CBK-PR"], "T1203": ["CBK-PR"],
+    "T1053": ["CBK-PR"], "T1098": ["CBK-PR"], "T1547": ["CBK-PR"],
+    "T1548": ["CBK-PR"], "T1068": ["CBK-PR"], "T1574": ["CBK-PR"],
+    "T1070": ["CBK-DE"], "T1027": ["CBK-DE"], "T1562": ["CBK-DE"],
+    "T1110": ["CBK-PR"], "T1003": ["CBK-PR"], "T1555": ["CBK-PR"], "T1552": ["CBK-PR"],
+    "T1046": ["CBK-ID"], "T1018": ["CBK-ID"], "T1087": ["CBK-ID"],
+    "T1083": ["CBK-ID"], "T1082": ["CBK-ID"],
+    "T1021": ["CBK-PR", "CBK-RS"], "T1570": ["CBK-RS"],
+    "T1005": ["CBK-RS"], "T1119": ["CBK-RS"],
+    "T1071": ["CBK-DE", "CBK-RS"], "T1572": ["CBK-DE"], "T1041": ["CBK-RS"],
+    "T1486": ["CBK-RC"],
+}
+
+# ── Kenya Data Protection Act, 2019 (No. 24 of 2019) — section references.
+#    s.25 principles (integrity & confidentiality) · s.41 data protection by design /
+#    technical & organisational measures · s.42 security safeguards · s.43 breach
+#    notification. Verified against the gazetted Act + kenyalaw.org. ──────────────────
+ATTACK_TO_KDPA: dict[str, list[str]] = {
+    "T1595": ["s.41"], "T1590": ["s.41"], "T1592": ["s.41"], "T1596": ["s.41"],
+    "T1589": ["s.25", "s.41"],
+    "T1190": ["s.41"], "T1133": ["s.41"], "T1059": ["s.41"], "T1203": ["s.41"],
+    "T1053": ["s.41"], "T1547": ["s.41"], "T1574": ["s.41"], "T1082": ["s.41"],
+    "T1078": ["s.25", "s.41"], "T1098": ["s.25", "s.41"], "T1548": ["s.41"],
+    "T1068": ["s.41"], "T1110": ["s.25", "s.41"], "T1087": ["s.25", "s.41"],
+    "T1003": ["s.25", "s.41", "s.42"], "T1555": ["s.25", "s.42"],
+    "T1552": ["s.25", "s.41", "s.42"],
+    "T1070": ["s.41"], "T1027": ["s.41"], "T1562": ["s.41"],
+    "T1046": ["s.41"], "T1018": ["s.41"], "T1083": ["s.41"],
+    "T1021": ["s.41"], "T1570": ["s.41"],
+    "T1005": ["s.25", "s.42", "s.43"], "T1119": ["s.25", "s.42", "s.43"],
+    "T1071": ["s.41"], "T1572": ["s.41"], "T1041": ["s.25", "s.43"],
+    "T1486": ["s.41", "s.43"],
+}
+
+# Frameworks exposed by map_finding (NIST 800-53 + SOC 2 kept from 5F; ISO/CBK/KDPA add C3).
+FRAMEWORKS = ("nist_800_53", "pci_dss", "soc2", "iso_27001", "cbk", "kenya_dpa")
+
+# PTES — the report's structural backbone (Penetration Testing Execution Standard).
+PTES_PHASES = (
+    "Pre-engagement Interactions", "Intelligence Gathering", "Threat Modeling",
+    "Vulnerability Analysis", "Exploitation", "Post-Exploitation", "Reporting",
+)
+
 
 def _base(technique_id: str) -> str:
     return (technique_id or "").split(".")[0]
 
 
 def map_finding(technique_id: str) -> dict:
-    """Map a technique id to its NIST 800-53 / PCI DSS / SOC 2 controls."""
+    """Map a technique id to its NIST 800-53 / PCI DSS / SOC 2 / ISO 27001 / CBK /
+    Kenya DPA controls."""
     base = _base(technique_id)
     return {
         "technique_id": technique_id,
         "nist_800_53": ATTACK_TO_NIST.get(base, []),
         "pci_dss": ATTACK_TO_PCI.get(base, []),
         "soc2": ATTACK_TO_SOC2.get(base, []),
+        "iso_27001": ATTACK_TO_ISO27001.get(base, []),
+        "cbk": ATTACK_TO_CBK.get(base, []),
+        "kenya_dpa": ATTACK_TO_KDPA.get(base, []),
     }
 
 
 def rollup(technique_ids) -> dict:
-    """Aggregate technique ids into control-family counts (for a report table)."""
+    """Aggregate technique ids into per-framework control counts (for a report table)."""
     technique_ids = list(technique_ids)
-    nist: dict[str, int] = {}
-    pci: dict[str, int] = {}
+    counts: dict[str, dict[str, int]] = {fw: {} for fw in FRAMEWORKS}
     for tid in technique_ids:
         mapped = map_finding(tid)
-        for control in mapped["nist_800_53"]:
-            nist[control] = nist.get(control, 0) + 1
-        for req in mapped["pci_dss"]:
-            pci[req] = pci.get(req, 0) + 1
+        for fw in FRAMEWORKS:
+            for control in mapped[fw]:
+                counts[fw][control] = counts[fw].get(control, 0) + 1
+    out = {"techniques": len(technique_ids)}
+    for fw in FRAMEWORKS:
+        out[fw] = dict(sorted(counts[fw].items()))
+    return out
+
+
+def compliance_appendix(findings: list[dict]) -> dict:
+    """Build the compliance appendix (C3): per-finding mapping across all frameworks +
+    a control-family rollup + the PTES structure. `findings`: list of
+    {target, technique, severity, cvss, cve, port}."""
+    rows = []
+    for f in findings:
+        mapped = map_finding(f.get("technique", ""))
+        rows.append({
+            "target": f.get("target"),
+            "technique": f.get("technique"),
+            "severity": f.get("severity", "info"),
+            "cvss": f.get("cvss"),
+            "cve": f.get("cve"),
+            **{fw: mapped[fw] for fw in FRAMEWORKS},
+        })
     return {
-        "techniques": len(technique_ids),
-        "nist_800_53": dict(sorted(nist.items())),
-        "pci_dss": dict(sorted(pci.items())),
+        "frameworks": list(FRAMEWORKS),
+        "ptes_phases": list(PTES_PHASES),
+        "rows": rows,
+        "rollup": rollup([f.get("technique", "") for f in findings]),
     }
 
 
