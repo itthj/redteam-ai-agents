@@ -69,7 +69,7 @@ host. Full run/usage guide: **[QUICKSTART.md](QUICKSTART.md)**.
 | **post_exploit** | Enumeration, privesc, lateral-movement discovery |
 | **validation** | Deterministically re-tests candidate findings → confirms only reproduced ones (anti-hallucination) |
 | **forensics** | Timeline, MITRE ATT&CK mapping, artifact collection |
-| **reporting** | Executive summary, technical findings, remediation |
+| **reporting** | Three-tier report (exec / technical / compliance), PTES-structured; findings mapped to ISO 27001, PCI DSS, CBK, Kenya DPA 2019 |
 
 ### Phase agents (11) — one per Kali category
 

@@ -7,6 +7,23 @@ All notable changes to `redteam-ai-agents` are recorded here. This file tracks t
 
 ## [Unreleased]
 
+### C3 — Compliance-mapped reporting (ISO 27001 · PCI · CBK · Kenya DPA)
+Extended the reporting layer to map every finding to four named frameworks and to
+produce three report tiers from one engagement (structure on PTES, severity on CVSS).
+
+- **Changed** `core/compliance.py` — added `ATTACK_TO_ISO27001` (ISO/IEC 27001:2022
+  Annex A), `ATTACK_TO_CBK` (CBK Guidance Note on Cybersecurity, NIST-CSF-aligned
+  functions), `ATTACK_TO_KDPA` (Kenya Data Protection Act 2019 — s.25/s.41/s.42/s.43,
+  verified against the gazetted Act). `map_finding`/`rollup` now also return iso_27001 /
+  cbk / kenya_dpa (additive — existing NIST/PCI/SOC 2 keys unchanged). New
+  `compliance_appendix(findings)` + `FRAMEWORKS` + `PTES_PHASES`.
+- **Changed** `agents/reporting_agent.py` — new `compliance_appendix` tool; system prompt
+  now produces three tiers (Executive Summary / Technical Findings / Compliance Appendix)
+  anchored on PTES, each saved separately.
+- **Coverage:** every technique scored for NIST is also mapped to ISO 27001, CBK, and
+  Kenya DPA (full, per decision).
+- **Tests:** +6 offline tests in `test_compliance.py`. Suite: 234 → **240** passing.
+
 ### C2 — Finding-validation engine (candidate → confirmed → approved)
 Added a deterministic finding lifecycle so AI agents can only ever produce **candidate**
 findings; promotion to **confirmed** requires a deterministic re-test that actually
