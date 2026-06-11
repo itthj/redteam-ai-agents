@@ -1,0 +1,23 @@
+# Keeps dependencies and GitHub Actions current. Dependabot opens grouped PRs that
+# the CI lint/test/audit gates then validate before merge.
+version: 2
+updates:
+  # Python runtime + dev dependencies
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      python-dependencies:
+        patterns: ["*"]
+
+  # The actions pinned in .github/workflows/*.yml (e.g. checkout, setup-python)
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns: ["*"]
