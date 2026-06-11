@@ -1,5 +1,7 @@
 """Tests for the guardrails safety layer."""
 
+import base64
+
 import pytest
 
 from core.guardrails import GuardrailViolation, guardrails
@@ -59,3 +61,31 @@ def test_contains_secrets_detection():
 def test_clean_text_unchanged():
     text = "Host 10.0.0.5 has SSH open on port 22."
     assert guardrails.sanitize(text) == text
+
+
+# ── base64-encoded payload detection (decode-then-rescan) ─────────────────────
+
+def _b64cmd(payload: str) -> str:
+    enc = base64.b64encode(payload.encode()).decode()
+    return f"echo {enc} | base64 -d | sh"
+
+
+@pytest.mark.parametrize("payload", [
+    "rm -rf /",
+    "dd if=/dev/zero of=/dev/sda",
+    ":(){ :|:& };:",
+])
+def test_base64_encoded_destructive_blocked(payload):
+    with pytest.raises(GuardrailViolation):
+        guardrails.check_command(_b64cmd(payload))
+
+
+def test_base64_encoded_safe_command_allowed():
+    # a benign payload, encoded — decode-then-rescan must NOT trip the guardrail
+    guardrails.check_command(_b64cmd("nmap -sV 10.0.0.5"))
+
+
+def test_base64_destructive_in_tool_input_blocked():
+    enc = base64.b64encode(b"rm -rf /").decode()
+    with pytest.raises(GuardrailViolation):
+        guardrails.check_tool_input("shell", {"command": f"{enc} | base64 -d | bash"})

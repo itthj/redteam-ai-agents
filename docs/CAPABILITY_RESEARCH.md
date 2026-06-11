@@ -57,8 +57,9 @@ Gaps the research surfaces, by value:
 - **[NEXT] Conversation compaction** — when an agent's message history nears a token
   budget, summarize older turns via the existing fast-model primitive (5A),
   preserving findings/decisions and clearing redundant tool dumps.
-- **[NEXT] Output guardrail hardening** — extend `guardrails` with base64-aware
-  decoding before destructive-pattern matching (CAI-style), closing an evasion gap.
+- **[DONE 2026-06-11] Output guardrail hardening** — `guardrails.check_command` now
+  base64-decodes command segments and re-scans them, catching destructive payloads
+  smuggled past the matcher by encoding (CAI-style). +5 tests.
 - **[LATER] Semantic memory** — embeddings backend behind the existing
   `TradecraftMemory` interface (needs `sentence-transformers`/`chromadb`; 3.12).
 - **[LATER] CTI enrichment** — ingest ATT&CK STIX / Atomic Red Team to enrich the

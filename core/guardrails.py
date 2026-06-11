@@ -17,6 +17,8 @@ guardrails govern WHAT may be done to them.
 
 from __future__ import annotations
 
+import base64
+import binascii
 import logging
 import re
 
@@ -60,6 +62,10 @@ _SECRET_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\baws_secret_access_key\s*=\s*\S+"), "aws_secret_access_key=[REDACTED]"),
 ]
 
+# base64-looking tokens (>= 8 data chars). Used to decode-and-rescan command text
+# so destructive payloads smuggled past the matcher via encoding are still caught.
+_B64_RE = re.compile(r"[A-Za-z0-9+/]{8,}={0,2}")
+
 
 class Guardrails:
     """Static safety checks. Stateless — safe to call from anywhere."""
@@ -82,6 +88,35 @@ class Guardrails:
                     f"Command: {command[:120]}"
                     + (f" (context: {context})" if context else "")
                 )
+        # Decode-then-rescan: a destructive payload is often smuggled past the
+        # matcher by base64-encoding it (e.g. `echo cm0gLXJmIC8K | base64 -d | sh`).
+        for decoded in Guardrails._decode_b64_segments(command):
+            for pattern, reason in _DESTRUCTIVE_PATTERNS:
+                if re.search(pattern, decoded.lower()):
+                    log.error("[GUARDRAIL] BLOCKED base64-encoded destructive command: %s", reason)
+                    raise GuardrailViolation(
+                        f"Blocked destructive action: {reason} (hidden in base64). "
+                        f"Decoded: {decoded[:120]}"
+                        + (f" (context: {context})" if context else "")
+                    )
+
+    @staticmethod
+    def _decode_b64_segments(text: str) -> list[str]:
+        """
+        Best-effort decode of base64-looking tokens in `text`, so destructive
+        payloads hidden by encoding are still screened. Only segments that decode
+        to mostly-printable UTF-8 are returned (binary / garbage decodes ignored).
+        """
+        out: list[str] = []
+        for token in _B64_RE.findall(text or ""):
+            s = token + "=" * (-len(token) % 4)   # restore stripped padding
+            try:
+                decoded = base64.b64decode(s, validate=True).decode("utf-8")
+            except (binascii.Error, ValueError, UnicodeDecodeError):
+                continue
+            if decoded and sum(c.isprintable() or c.isspace() for c in decoded) >= 0.9 * len(decoded):
+                out.append(decoded)
+        return out
 
     @staticmethod
     def check_payload(payload: str) -> None:
