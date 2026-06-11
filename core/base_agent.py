@@ -36,6 +36,7 @@ import anthropic
 from config.authorization import OperationType, scope
 from config.settings import settings
 from core.adversary_profiles import get_profile
+from core.content_safety import content_safety
 from core.evidence_store import evidence
 from core.guardrails import GuardrailViolation, guardrails
 from core.knowledge_base import kb
@@ -291,6 +292,21 @@ class BaseAgent:
                         and settings.compress_tool_output
                         and len(text) > _COMPRESS_THRESHOLD):
                     text = await self._compress_tool_output(text)
+                # Untrusted-content defense (opt-in): tool output is target-
+                # controlled and can carry prompt-injection aimed at hijacking the
+                # agent. Detect + spotlight it before it re-enters the model
+                # context. Defense-in-depth only — the scope gate, guardrails and
+                # operator stay authoritative (Agents Rule of Two).
+                if settings.enable_untrusted_content_defense and not is_error:
+                    text, detections = content_safety.defend(text, source=block.name)
+                    if detections:
+                        evidence.log(
+                            self.NAME, block.name,
+                            f"Possible prompt-injection in tool output "
+                            f"[{', '.join(detections)}]",
+                            target=inputs.get("target") or inputs.get("ip"),
+                            severity="medium",
+                        )
             results.append({
                 "type": "tool_result",
                 "tool_use_id": block.id,

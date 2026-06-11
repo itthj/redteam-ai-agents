@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     engagement_budget_usd: float = 0.0     # USD ceiling for the engagement; 0 = no ceiling
     on_budget_exceeded: str = "downgrade"  # when the ceiling is hit: "downgrade" | "halt"
     compress_tool_output: bool = False     # opt-in: summarise oversized tool output via the fast model
+    # opt-in: detect + spotlight prompt-injection in untrusted tool output before it
+    # re-enters the model context (defense-in-depth; see core/content_safety.py)
+    enable_untrusted_content_defense: bool = False
 
     # ── Engagement Authorization ──────────────────────────────────────────────
     authorized_targets: str = ""
