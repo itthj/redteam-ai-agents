@@ -101,6 +101,16 @@ class Settings(BaseSettings):
     # Default off → the agent cannot actively scan without a deliberate operator opt-in.
     webapp_active_scan_authorized: bool = False
 
+    # ── Active Directory / Windows testing (C5) ───────────────────────────────
+    # BloodHound CE REST + NetExec/Impacket/Certipy (subprocess). All optional; the
+    # ad MCP server degrades gracefully if a tool or BHCE is unreachable.
+    bloodhound_ce_url: str = "http://127.0.0.1:8080"   # BloodHound CE API base
+    bloodhound_ce_token: str = ""                       # BHCE bearer token
+    netexec_path: str = "nxc"                           # NetExec binary
+    # State-changing AD actions (nxc command exec, Certipy cert request) are intrusive
+    # → need explicit written authorization. Read/enumeration is allowed in scope.
+    ad_state_change_authorized: bool = False
+
     # ── Metasploit RPC ────────────────────────────────────────────────────────
     msfrpc_host: str = "127.0.0.1"
     msfrpc_port: int = 55553

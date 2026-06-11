@@ -7,6 +7,27 @@ All notable changes to `redteam-ai-agents` are recorded here. This file tracks t
 
 ## [Unreleased]
 
+### C5 — Active Directory / Windows testing (`ad` MCP server)
+Added an in-repo `ad` MCP server wrapping BloodHound CE (REST), bloodhound-python,
+NetExec, Impacket, and Certipy for the existing `credential_access` and
+`lateral_movement` phase agents (via `USE_MCP` — no new agent).
+
+- **New** `mcp_layer/servers/ad_server.py` — gated handlers: `bh_collect`,
+  `bh_shortest_path` (BHCE cypher → records the attack path as evidence + mirrors path
+  hosts into the KB → 2A attack graph), `nxc_enum`, `secretsdump` (output sanitized,
+  hash count only), `certipy_find` (read), and `nxc_exec` (STATE-CHANGING).
+- **Changed** `config/authorization.py` — `OperationType.AD_STATE_CHANGE`.
+- **Changed** `mcp_config.py` — registered the `ad` stdio server (extends the read-only
+  `bloodhound` stub).
+- **Changed** `config/settings.py` / `.env.example` — `BLOODHOUND_CE_URL/TOKEN`,
+  `NETEXEC_PATH`, `AD_STATE_CHANGE_AUTHORIZED` (default off).
+- **Safety:** collection/enumeration/path-query/ESC-discovery are scope-gated; `nxc_exec`
+  is scope-gated **and** written-authorization-gated **and** guardrail-checked (destructive
+  commands blocked). Recovered secrets are never logged in plaintext.
+- **Degradation:** missing tool / unreachable BHCE ⇒ a `degraded` result, never a crash.
+- **Tests:** +13 offline tests (`test_ad_server.py`; subprocess + BHCE mocked). Suite: 250 → **263**.
+- **Kali install:** `pipx install bloodhound netexec impacket certipy-ad`; BloodHound CE via Docker.
+
 ### C4 — Client dashboard (full API + React/Vite frontend)
 Turned the FastAPI app into a client-facing API and added a React dashboard that streams
 live engagement state.

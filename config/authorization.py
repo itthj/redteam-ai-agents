@@ -28,6 +28,7 @@ class OperationType(str, Enum):
     ACTIVE_SCAN = "active_scan"           # Nmap, banner grabbing — packets to target
     VULNERABILITY_SCAN = "vuln_scan"      # Authenticated / unauthenticated vuln scanning
     WEB_ACTIVE_SCAN = "web_active_scan"   # Intrusive web-app scanning (ZAP active scan, nuclei DAST)
+    AD_STATE_CHANGE = "ad_state_change"   # State-changing AD action (NetExec exec, Certipy request)
     EXPLOITATION = "exploitation"         # Active exploitation attempts
     POST_EXPLOITATION = "post_exploit"    # Lateral movement, persistence, data access
     FORENSICS = "forensics"              # Evidence collection, log analysis

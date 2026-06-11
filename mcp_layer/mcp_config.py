@@ -147,6 +147,21 @@ MCP_SERVERS: dict[str, dict] = {
         "tool_allowlist": ["query_paths", "shortest_path_to_da", "list_owned"],
     },
 
+    # ── Active Directory / Windows testing (C5) — in-repo server ──────────────
+    # BloodHound CE (REST) + bloodhound-python + NetExec + Impacket + Certipy, for
+    # the credential_access / lateral_movement phase agents. Read/enumeration is
+    # scope-gated; state-changing nxc_exec is additionally written-authorization-gated
+    # (AD_STATE_CHANGE_AUTHORIZED) and guardrail-checked. Degrades gracefully.
+    "ad": {
+        "transport": "stdio",
+        "command": _PY,
+        "args": ["-m", "mcp_layer.servers.ad_server"],
+        "description": "AD/Windows — BloodHound CE, NetExec, Impacket, Certipy",
+        "tool_prefix": "ad",
+        "tool_allowlist": ["bh_collect", "bh_shortest_path", "nxc_enum",
+                           "secretsdump", "certipy_find", "nxc_exec"],
+    },
+
     # Threat intel — GreyNoise / VirusTotal CVE & IP enrichment (read-only).
     "threatintel": {
         "transport": "stdio",

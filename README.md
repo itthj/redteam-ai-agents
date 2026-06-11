@@ -231,6 +231,11 @@ Two servers are wired and ready:
   Node; auto-fetched by `npx`). Scoped to the evidence directory and exposed
   **read-only** via a `tool_allowlist` — 6 read tools, no write/edit/move, so
   agents can review artefacts without touching the tamper-evident chain.
+- **`webapp`** — in-repo OWASP ZAP + Nuclei server (C1). Active scan / DAST are
+  scope- and written-authorization-gated.
+- **`ad`** — in-repo BloodHound CE + NetExec + Impacket + Certipy server (C5) for the
+  `credential_access` / `lateral_movement` agents. Read/enum scope-gated; state-changing
+  `nxc_exec` is written-authorization-gated and guardrail-checked.
 
 > **Efficiency note:** MCP tool schemas ride in every agent's context on every
 > call. The `filesystem` server offers 13 tools; only the 6 useful read-only
