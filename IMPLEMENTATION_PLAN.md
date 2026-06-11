@@ -322,3 +322,286 @@ S ≈ 1–2 days, M ≈ 3–5 days for one engineer familiar with the code.
 # Suggested first PR
 
 Ship **5A (model router + budget governor)** as the opener: it's self-contained, touches only `telemetry`, `settings`, and `BaseAgent`, delivers an immediate cost reduction you can measure in `telemetry.summary()`, and creates the cheap-inference primitive that 2C, 2E, and 5F all reuse. Then **2A** as the second PR to lay the graph backbone.
+
+---
+---
+
+# EPIC 6 — Client-grade engagement delivery (9 new capabilities)
+
+> **Added 2026-06-11** as a *new* kickoff mandate, appended below the (now-complete)
+> Epic #2/#5 design above so the original design doc is preserved verbatim — nothing
+> above this line was edited. Capabilities are labelled **C1–C9** (collision-free with
+> the existing `2A–2E` / `5A–5F` ids). Each capability is executed with the standing
+> per-workstream discipline from `CLAUDE.md`: one capability = one branch
+> `feat/C<n>-...` = one PR, EXPLORE → PLAN (`​.dev/PLAN_C<n>.md`) → IMPLEMENT → VERIFY
+> (full suite green, fully offline) → COMMIT, updating `CHANGELOG.md` and docs as we go.
+> **Every hard constraint from the original build still holds** (additive & non-breaking,
+> safe-default opt-in settings, graceful degradation, no breaking change to public
+> signatures / CLI output / KB JSON schema, offline tests with no key/network, and
+> nothing weakens the scope gate / guardrails / evidence chain).
+
+## 6.0 How the existing platform works (the seams these 9 capabilities attach to)
+
+Everything below plugs into patterns that already exist — no new architecture, just
+new agents, new MCP servers, and a few additive extension points.
+
+| Seam (today, verified) | What it gives a new capability |
+|---|---|
+| **`BaseAgent`** (`core/base_agent.py`) — agentic loop, streaming, prompt-cache (volatile KB in the *first user message*, never the cached system prefix), per-call `telemetry.record`, guardrail pre-flight on every tool input, `USE_MCP` merges bridge tools | Subclass it for `webapp_agent`, `validation_agent`, `llm_redteam_agent`, `cloud_agent`. Override `MODEL`/`EFFORT` for tiering. Get safety + cost tracking for free. |
+| **Specialist + `PhaseAgent`** (`agents/`) — native tools via `_tool_map()`, register in `Orchestrator._get_agent` + `_ALL_AGENTS` + the planner roster prompt | The template for every new agent. `credential_access` / `lateral_movement` PhaseAgents already exist → C5 just gives them AD tools, no new agent. |
+| **MCP layer** — inbound `MCPBridge` (`mcp_layer/mcp_bridge.py`: stdio+sse, `tool_allowlist`, namespaced `mcp_<prefix>_<tool>`, `_CONNECT_TIMEOUT`, graceful skip) + registry `MCP_SERVERS` (`mcp_config.py`) + outbound FastMCP server (`redteam_mcp_server.py`) | Each new tool surface (ZAP, Nuclei, BloodHound CE, GoPhish, garak/PyRIT, Prowler/Trivy) is a `MCP_SERVERS` entry and/or a small FastMCP server under `mcp_layer/servers/`. Unreachable ⇒ warn + native fallback. |
+| **`EngagementScope`** (`config/authorization.py`) — `scope.authorize(target, OperationType)` at the start of every target-touching tool; IP/CIDR/hostname-suffix matching; expiry check | Every new action routes through this. Non-IP targets (email domains, cloud accounts, LLM endpoints) need an additive extension — see §6.1. |
+| **`EvidenceStore`** (`core/evidence_store.py`) — append-only SHA-256 chain in SQLite; `evidence.log(agent, op, action, target, result, severity)`; `verify_chain()` | Every new finding/action is logged here, chained and tamper-evident. Unchanged. |
+| **`KnowledgeBase`** (`core/knowledge_base.py`) — thread-safe JSON store + `attach_sink` (mirrors writes into the attack graph) | New findings land via `kb.add_vulnerability` / `add_note`. The attack-graph sink (2A) means C5's AD paths and C1's web findings auto-populate the graph. |
+| **`Guardrails`** (`core/guardrails.py`) — destructive-command/payload block (base64-aware), secret redaction, `check_tool_input` | Every new command/payload passes `check_command`/`check_payload`; reports get `sanitize()`. Unchanged and authoritative. |
+| **`Telemetry` + budget governor + `ModelRouter`** (`core/telemetry.py`, `model_router.py`) — per-agent token/USD, `over_budget()`, `router.pick(task_class)` reading model names from `settings` | Cost governance + model tiering for high-volume specialist work (alert/scan-result triage → fast model). No hardcoded models. |
+| **Degradation template** — `MCPBridge._mcp_available()` / `redteam_mcp_server._mcp_available()`: optional dep missing ⇒ log warning, no-op, continue | Copy this exactly for `zaproxy`, `nuclei`, `bloodhound`, `gophish`, `garak`, `pyrit`, `prowler`, `trivy`. A missing external tool never crashes an engagement. |
+| **FastAPI app** (`api/server.py`) — REST + SSE `/events` (already streams phase, telemetry, findings, graph) + zero-build `/dashboard` | C4 extends this with CRUD + approval-queue + WebSocket; the existing static dashboard keeps working. |
+
+## 6.1 New cross-cutting extension points (built once in early capabilities, reused by many)
+
+These are the only genuinely *new* primitives; everything else is an agent or an MCP
+server. All are additive and opt-in.
+
+1. **Scope gate for non-IP targets** (additive to `config/authorization.py`). The current
+   gate models targets as IP/CIDR/hostname. Three capabilities act on other identifiers:
+   - C6 phishing → **email addresses / domains** (must be inside the client's authorized domain)
+   - C9 cloud posture → **cloud accounts / subscriptions / projects** (not network hosts)
+   - C8 LLM red-team → **LLM API endpoints / URLs**
+
+   Plan: add new `OperationType` members (`WEB_ACTIVE_SCAN`, `PHISHING`, `CLOUD_POSTURE`,
+   `LLM_REDTEAM`, `AD_STATE_CHANGE`) and new settings
+   (`authorized_email_domains`, `authorized_cloud_accounts`, `authorized_llm_endpoints`)
+   with `scope.authorize_email(addr)`, `scope.authorize_cloud(account)`,
+   `scope.authorize_endpoint(url)` helpers that mirror `authorize()` (raise
+   `AuthorizationError` out of scope, log on success). The existing `authorize()` path is
+   untouched. *(Needs your sign-off — see Open Decisions.)*
+
+2. **Explicit-authorization + human-approval gate** for any intrusive/outbound action
+   (web active scan, AD state change, phishing send, exploit). New
+   `core/approval.py`: a tiny gate `require_authorization(action, settings_flag)` that
+   (a) checks a per-capability written-authorization flag tied to the engagement
+   (`WEBAPP_ACTIVE_SCAN_AUTHORIZED`, `PHISHING_AUTHORIZED`, `AD_STATE_CHANGE_AUTHORIZED`,
+   default **false**), and (b) requires a human-approval record before the action runs.
+   Reuses the EvidenceStore for the approval audit trail. This is the single choke-point
+   the prompt's "explicit authorization flag AND a human-approval step" maps onto.
+
+3. **Finding lifecycle `candidate → confirmed → approved`** (C2; `core/finding_state.py`).
+   A separate signature-keyed store (like `findings_ledger.json`), **not** a mutation of
+   the KB vuln dicts, so the KB JSON schema is untouched. AI agents only ever write
+   `candidate`; the deterministic `validation_agent` promotes to `confirmed`; a human
+   promotes to `approved` via API/CLI. Nothing is reported or sent until `approved`.
+   Builds directly on the existing `FindingValidator` + `finding_signature`.
+
+4. **Compliance-mapping expansion** (C3; extends `core/compliance.py`). Add
+   `ATTACK_TO_ISO27001`, `ATTACK_TO_CBK` (Central Bank of Kenya Guidance Note on
+   Cybersecurity), `ATTACK_TO_KDPA` (Kenya Data Protection Act 2019) tables alongside the
+   existing NIST/PCI/SOC2 maps; report structure anchored on **PTES**, severity on **CVSS**.
+
+5. **Pre-run cost estimator** (`core/cost_estimator.py`). Estimate tokens from scope size
+   × per-phase priors → USD; hard-stop before the run if estimate > `engagement_budget_usd`
+   (the live governor in `telemetry.over_budget()` already enforces the ceiling mid-run).
+
+## 6.2 The nine capabilities
+
+For each: **what's new**, **where it plugs in**, **safety routing**, **degradation**,
+**tests** (offline, mock the external tool), **Kali install**, **model tier**.
+
+### C1 — Web application testing (`webapp_agent` + `webapp` MCP server: OWASP ZAP + Nuclei)
+- **New:** `agents/webapp_agent.py` (deep agent, mirrors `VulnAgent`); `mcp_layer/servers/zap_server.py`
+  (FastMCP, mirrors `redteam_mcp_server.py`) exposing `zap_context_setup`, `zap_spider`,
+  `zap_ajax_spider`, `zap_active_scan`, `zap_alerts` (via the `zaproxy` Python client to a
+  ZAP daemon) and `nuclei_scan` (subprocess, `-json-export`, `-update-templates`); registry
+  entries in `MCP_SERVERS`; `core/owasp_map.py` (ATT&CK/CWE → OWASP Top 10 + WSTG).
+- **Plug-in:** register `webapp` in `Orchestrator._get_agent`, `_ALL_AGENTS`, planner roster.
+- **Safety:** spider/passive ⇒ `scope.authorize(host, VULNERABILITY_SCAN)`. **Active scan is
+  intrusive** ⇒ `OperationType.WEB_ACTIVE_SCAN` + `approval.require_authorization(...)`
+  (flag + human step). ZAP attack payloads pass `guardrails.check_command/payload`. Alerts →
+  `kb.add_vulnerability` + `evidence.log`, created as **candidate** findings (feeds C2).
+- **Degradation:** ZAP daemon down / `zaproxy`/`nuclei` absent ⇒ warn + no-op; agent
+  continues on native HTTP checks.
+- **Tests:** mock the ZAP client + nuclei subprocess; assert out-of-scope URL blocked,
+  active scan refused without the auth flag + approval, alerts become candidate findings,
+  OWASP mapping correct.
+- **Kali:** `sudo apt install -y zaproxy nuclei && nuclei -update-templates` (or
+  `pip install zaproxy`); run ZAP daemon: `zaproxy -daemon -port 8090 -config api.key=…`.
+- **Model tier:** alert triage/classification → `router.pick("classify")` (fast model).
+
+### C2 — Finding-validation engine (`candidate → confirmed → approved` + approval queue)
+- **New:** `core/finding_state.py` (state machine + signature-keyed `ApprovalQueue` store);
+  `agents/validation_agent.py` (deterministic re-test: re-issue the exact HTTP request,
+  re-run the specific Nuclei template, replay client-side issues in a headless browser).
+- **Plug-in:** all agent finding-writes (`record_finding`, `save_vulnerability`, C1 alerts)
+  default to `state=candidate`. `validation_agent` promotes candidate→confirmed **only** with
+  bound re-test evidence + CVSS. Human promotes confirmed→approved via a new API endpoint /
+  CLI command. Reporting/sending (C3/C4/C6) refuse anything not `approved`.
+- **Safety:** re-tests go through the same scope gate + guardrails; confirmation evidence is
+  chained. Hard invariant (tested): **no path lets an AI agent produce `confirmed` or
+  `approved`.**
+- **Tests:** candidate cannot auto-approve; validator promotes only on matching evidence;
+  approval requires explicit human action; report/send blocked for non-approved.
+- **Model tier:** none (deterministic, no model call) — this is the anti-hallucination spine.
+
+### C3 — Compliance-mapped reporting (ISO 27001 Annex A · PCI DSS · CBK · Kenya DPA 2019)
+- **New:** mapping tables in `core/compliance.py` (see §6.1.4); `ReportingAgent` gains a
+  `compliance_appendix` tool and three-tier rendering (executive / technical / compliance
+  appendix) reusing `core/report_export.py`.
+- **Plug-in:** consumes **approved** findings (C2) + C9 cloud checks; one engagement → three
+  documents. Structure anchored on PTES, severity on CVSS (existing `_calculate_risk_score`).
+- **Tests:** each technique maps to all four frameworks; three tiers render; only approved
+  findings appear.
+- **Decision:** CBK + KDPA control maps are curated subsets seeded from the public source
+  texts — I'll cite sources in-doc; confirm you want the full mapping vs a representative subset first.
+
+### C4 — Client dashboard (full API + React frontend, live cost over WebSocket/SSE)
+- **New:** extend `api/server.py` with CRUD (engagements, findings w/ candidate/confirmed/
+  approved + the approval action, evidence, reports, agent start/stop/observe) and a
+  WebSocket endpoint that bridges `core/message_bus.py` for live agent activity; `frontend/`
+  React (Vite) app: KPI overview, engagements list, findings table (states), approval queue,
+  live activity + live token/USD (the SSE `/events` payload already carries telemetry).
+- **Plug-in:** purely additive endpoints; the existing zero-build `/dashboard` stays.
+- **Tests:** FastAPI `TestClient` (offline) for CRUD + approval transitions + SSE/WS payload
+  shape. Frontend kept out of the pytest gate (separate `npm test`/excluded).
+- **Decision:** React (Vite) vs Next.js; `frontend/` in-repo (adds Node to CI) vs separate.
+
+### C5 — Active Directory / Windows testing (`ad` MCP server for the existing phase agents)
+- **New:** `mcp_layer/servers/ad_server.py` wrapping **BloodHound CE** (REST API + collector),
+  **bloodhound-python** (ce branch), **NetExec (nxc)**, **Impacket**, **Certipy**. Tools:
+  `bh_collect`, `bh_load`, `bh_shortest_path`, `nxc_enum`, `impacket_query`, `certipy_find`
+  (+ gated state-changing variants). Replaces/extends the existing read-only `bloodhound`
+  SSE stub in `MCP_SERVERS`.
+- **Plug-in:** **no new agent** — the existing `credential_access` + `lateral_movement`
+  `PhaseAgent`s gain these via `USE_MCP`. Collected attack paths are recorded as evidence
+  **and** mirrored into the 2A attack graph (KB sink), enriching `next_best_action`.
+- **Safety:** enumeration/read-first by default. State-changing actions (nxc exec, Certipy
+  request/auth) ⇒ `OperationType.AD_STATE_CHANGE` + `approval.require_authorization` + scope.
+- **Degradation:** BHCE/nxc/impacket/certipy absent ⇒ warn + no-op.
+- **Tests:** mock BHCE REST + nxc/impacket/certipy subprocess; assert read-only default,
+  state-change refused without auth, paths recorded + graph updated.
+- **Kali:** `pipx install bloodhound netexec impacket certipy-ad`; BloodHound CE via
+  `docker compose` (BHCE compose file) — I'll add a `bloodhound-ce` service to `docker-compose.yml`.
+
+### C6 — Phishing / social engineering (`social_eng` MCP server: GoPhish REST)
+- **New:** `mcp_layer/servers/gophish_server.py` wrapping the GoPhish REST API (templates,
+  landing pages, sending profiles, target groups, multi-wave campaigns, click/submit metrics).
+- **Safety (strongest gates in the build):** every campaign ⇒ `OperationType.PHISHING` +
+  `approval.require_authorization("phishing", PHISHING_AUTHORIZED)` (written-authorization
+  flag tied to the engagement) **+ human approval**. Target lists validated with
+  `scope.authorize_email(addr)` — **every** recipient must be inside the authorized client
+  domain or the campaign is refused. All actions + metrics → evidence/KB.
+- **Degradation:** GoPhish API unreachable ⇒ warn + no-op.
+- **Tests:** campaign blocked without the flag; blocked without human approval; any
+  out-of-domain recipient rejects the whole send; mock the GoPhish API.
+- **Kali:** download the GoPhish release binary, run it, set `GOPHISH_API_URL` +
+  `GOPHISH_API_KEY` in `.env`.
+- **Decision:** how "written authorization" is represented (flag + reference to a signed
+  authorization file vs a stronger token) — see Open Decisions.
+
+### C7 — Multi-tenant SaaS backend (PostgreSQL + RLS · Celery + Redis · OAuth2/JWT + RBAC · Vault/KMS · append-only audit)
+- **New:** a `saas/` package — SQLAlchemy models (`tenants`, `users`, `engagements`,
+  `findings`, `evidence_index`, `audit_log`) with `tenant_id` on every row + **Postgres
+  row-level security**; **Celery + Redis** tasks wrapping `Orchestrator.run_mission/
+  run_autonomous` (persistence, retries, status, resume — builds on `core/checkpoint.py`);
+  **OAuth2/JWT + RBAC** (operator / analyst / client-viewer) layered on the FastAPI app;
+  a secrets provider abstraction (**Vault / cloud KMS**, degrading to `.env` in dev);
+  append-only `audit_log` mirroring the evidence-chain pattern.
+- **How it reconciles with the singletons (key design point):** the core engine stays a
+  per-process singleton (`kb`/`evidence`/`scope`/`telemetry`). **One Celery worker runs one
+  engagement**; the Postgres layer is the multi-tenant system-of-record that indexes/mirrors
+  each job's findings + evidence and enforces tenant isolation + RBAC at the API edge. Core
+  modules are **not** refactored — C7 wraps them. This keeps "additive & non-breaking" true.
+- **Delivers the product non-negotiables:** reliability (Celery crash-survival/resume/partial
+  progress), self-security (RLS tenant isolation, at-rest evidence encryption via the existing
+  `cryptography` dep, secret rotation via Vault, access logging via `audit_log`), per-tenant
+  cost budgets (Postgres-tracked, on top of the per-engagement governor).
+- **Tests (offline):** RLS denies cross-tenant reads (SQLite-compat shim or a marked
+  pg-only subset), RBAC matrix, Celery task status transitions (eager mode / mock broker),
+  JWT issue/verify. No live Postgres/Redis required for the suite.
+- **This is the one capability that strains the additive constraint — see Open Decisions
+  for scope, RLS-vs-schema-per-tenant, secret backend, and whether it should precede C4's auth.**
+
+### C8 — AI / LLM red teaming (`llm_redteam_agent` + `llm_redteam` MCP server: garak + PyRIT)
+- **New:** `agents/llm_redteam_agent.py`; `mcp_layer/servers/llm_redteam_server.py` running
+  **garak** (baseline scan) and **PyRIT** (multi-turn / indirect prompt-injection scenarios)
+  against a client-authorized LLM endpoint; `core/owasp_llm_map.py` (OWASP Top 10 for LLM
+  Apps; prompt injection = **LLM01**).
+- **Safety:** assessment/discovery **only**, scoped to the client's own app via
+  `scope.authorize_endpoint(url)` + `OperationType.LLM_REDTEAM` + an explicit
+  `LLM_REDTEAM_AUTHORIZED` flag. Findings written as candidates (C2) mapped to LLM01–LLM10.
+- **Degradation:** garak/PyRIT absent ⇒ warn + no-op (heavy optional deps).
+- **Tests:** mock the garak/PyRIT runners; scope gate on endpoint; results map to LLM01–10.
+- **Kali/host:** `pip install garak pyrit` (verify exact PyRIT package name during C8).
+- **Model tier:** result parsing/classification → fast model.
+
+### C9 — Cloud & container posture (`cloud_agent` + `cloud` MCP server: Prowler + Trivy)
+- **New:** `agents/cloud_agent.py`; `mcp_layer/servers/cloud_server.py` running **Prowler**
+  (AWS/Azure/GCP/K8s CSPM, compliance-framework-aware, `-M json`) and **Trivy**
+  (container/image/IaC/cloud misconfig, `--format json`) with **read-only** client creds.
+- **Safety:** `scope.authorize_cloud(account)` + `OperationType.CLOUD_POSTURE`; read-only
+  credentials enforced. Each failed check → severity + a compliance control (feeds C3) →
+  candidate finding (C2) + evidence.
+- **Degradation:** prowler/trivy absent ⇒ warn + no-op.
+- **Tests:** mock prowler/trivy JSON; scope gate on account; checks map to severity + control
+  as candidates.
+- **Kali:** `pip install prowler` ; `sudo apt install -y trivy` (or the Aqua install script).
+- **Model tier:** check summarisation/mapping → fast model.
+
+## 6.3 Product-grade non-negotiables (built in, mapped to mechanisms)
+
+- **Cost governance** — per-engagement budget + live hard-stop already exist
+  (`engagement_budget_usd`, `telemetry.over_budget()`); add the **pre-run estimator**
+  (§6.1.5) and **per-tenant budgets** in C7. Model tiering via `model_router` keeps
+  high-volume specialist work on the fast model. No model names hardcoded.
+- **Reliability** — Celery (C7) gives crash-survival, retries, and resume; `core/checkpoint.py`
+  already rehydrates an interrupted autonomous run; the orchestrator already returns partial
+  findings on halt/iteration-limit. Scans report partial progress through the job-status row.
+- **Self-security** — encrypt evidence at rest (C7, `cryptography` already a dep — also
+  mitigates the known OneDrive-sync leak), tenant isolation (RLS), secret rotation (Vault/KMS),
+  append-only access/audit logging. The SHA-256 evidence chain stays the integrity anchor.
+
+## 6.4 Sequencing & branches (prompt-fixed order C1 → C9)
+
+| # | Branch | New agent / server | Key new files | Depends on |
+|---|---|---|---|---|
+| C1 | `feat/C1-webapp-testing` | `webapp_agent` + `zap`/`nuclei` MCP | `agents/webapp_agent.py`, `mcp_layer/servers/zap_server.py`, `core/owasp_map.py` | scope-gate (active-scan op) |
+| C2 | `feat/C2-finding-validation` | `validation_agent` | `core/finding_state.py`, `core/approval.py`, `agents/validation_agent.py` | C1 (candidate findings) |
+| C3 | `feat/C3-compliance-reporting` | (extends reporting) | `core/compliance.py` (+ISO/CBK/KDPA) | C2 (approved findings) |
+| C4 | `feat/C4-client-dashboard` | (extends API) | `api/` routes + `frontend/` | C2 (states), C3 (reports) |
+| C5 | `feat/C5-ad-windows` | `ad` MCP (existing phase agents) | `mcp_layer/servers/ad_server.py` | scope/approval, 2A graph |
+| C6 | `feat/C6-phishing` | `social_eng` MCP | `mcp_layer/servers/gophish_server.py` | scope-email, approval |
+| C7 | `feat/C7-saas-backend` | `saas/` (Postgres/Celery/JWT) | `saas/**` | C4 (API), checkpoint |
+| C8 | `feat/C8-llm-redteam` | `llm_redteam_agent` + MCP | `agents/llm_redteam_agent.py`, `mcp_layer/servers/llm_redteam_server.py`, `core/owasp_llm_map.py` | scope-endpoint, C2 |
+| C9 | `feat/C9-cloud-posture` | `cloud_agent` + MCP | `agents/cloud_agent.py`, `mcp_layer/servers/cloud_server.py` | scope-cloud, C2, C3 |
+
+Each branch stacks on the previous, ships its own offline tests green
+(`& "C:\Users\james\venvs\redteam-ai-agents\Scripts\python.exe" -m pytest -q`, currently
+**179 passing**), and updates `CHANGELOG.md`, `.env.example`, `requirements.txt`, and
+`README.md` only as it needs.
+
+## 6.5 Open decisions — I need your input before implementing
+
+1. **C7 scope & timing (biggest).** Confirm the additive `saas/` wrapper approach (core
+   singletons untouched, one engagement per Celery worker, Postgres as multi-tenant
+   system-of-record). And pick: **(a)** Postgres **RLS** vs **schema-per-tenant**;
+   **(b)** secret backend = HashiCorp **Vault** / **cloud KMS** / dev-only `.env`;
+   **(c)** should C7 land **before C4** so the dashboard ships with real RBAC, or do C4
+   open-on-localhost first and bolt auth on in C7 (matches the prompt's order)?
+2. **Scope-gate extension for non-IP targets.** OK to add `OperationType` members + the
+   `authorized_email_domains` / `authorized_cloud_accounts` / `authorized_llm_endpoints`
+   settings + `scope.authorize_email/cloud/endpoint` helpers (all additive, existing
+   `authorize()` untouched)? This is the cleanest way to keep C6/C8/C9 "physically unable
+   to act outside scope."
+3. **Finding-state storage.** Confirm a **separate signature-keyed store** (recommended —
+   zero change to the KB JSON schema) over adding a `state` field to KB vuln dicts.
+4. **"Written authorization" representation** for phishing / active scan / AD state-change /
+   exploit: minimum I'll implement is a per-capability settings flag **plus** a recorded
+   human-approval entry referencing a signed-authorization filename. Want anything stronger
+   (e.g. a signed token, or a second-operator countersign)?
+5. **C4 frontend.** React (**Vite**) vs **Next.js**, and `frontend/` **in-repo** (adds a Node
+   build to CI) vs a **separate** repo/dir excluded from the Python gate.
+6. **C3 compliance depth.** Full ISO 27001 Annex A / PCI / CBK / KDPA control maps, or a
+   curated representative subset first (seeded from the public source texts, expanded later)?
+7. **Run host.** These tools (ZAP, Nuclei, BloodHound CE, NetExec, Impacket, Certipy,
+   GoPhish, garak, PyRIT, Prowler, Trivy) are Linux/Kali and won't run on this Windows +
+   OneDrive dev box — confirm the live run host is **Kali** so I size the install docs +
+   degradation right, and that it's expected the dev box only runs the **mocked offline tests**.

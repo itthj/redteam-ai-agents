@@ -3,7 +3,7 @@
 [![tests](https://github.com/itthj/redteam-ai-agents/actions/workflows/ci.yml/badge.svg)](https://github.com/itthj/redteam-ai-agents/actions/workflows/ci.yml)
 
 A state-of-the-art **multi-agent cybersecurity operations platform** built on the
-**Anthropic Claude SDK** (Claude Opus 4.8). **18 specialist AI agents** — 7 deep
+**Anthropic Claude SDK** (Claude Opus 4.8). **19 specialist AI agents** — 8 deep
 agents plus 11 kill-chain phase agents mapped one-to-one to the Kali Linux
 operational categories (01–15) — cover the full attack lifecycle, coordinated
 by an intelligent orchestrator and connected to external tooling via the
@@ -57,13 +57,14 @@ host. Full run/usage guide: **[QUICKSTART.md](QUICKSTART.md)**.
                           └────────────────┘
 ```
 
-### Deep agents (7) — bespoke tooling
+### Deep agents (8) — bespoke tooling
 
 | Agent | Responsibility |
 |-------|----------------|
 | **recon** | DNS, Shodan, WHOIS, subdomain enumeration |
 | **scanner** | Nmap port/service scanning, banner grabbing |
 | **vuln** | CVE/NVD correlation, NSE vuln scripts, CVSS scoring |
+| **webapp** | Web app testing — OWASP ZAP + Nuclei, mapped to OWASP Top 10 / WSTG (active scan gated) |
 | **exploit** | Metasploit RPC, exploit selection, shell management |
 | **post_exploit** | Enumeration, privesc, lateral-movement discovery |
 | **forensics** | Timeline, MITRE ATT&CK mapping, artifact collection |
@@ -362,7 +363,7 @@ linux/
 │   ├── telemetry.py          token / cost tracking
 │   ├── guardrails.py         destructive-action blocking + secret redaction
 │   └── attack_framework.py   MITRE ATT&CK technique registry
-├── agents/                   the 7 specialist agents
+├── agents/                   the 8 specialist agents
 ├── mcp_layer/                MCP integration (bridge + server registry)
 ├── api/server.py             FastAPI REST interface
 ├── cli/main.py               rich terminal UI

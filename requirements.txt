@@ -39,6 +39,11 @@ opentelemetry-sdk>=1.20
 cryptography>=42.0.0
 bcrypt>=4.1.0
 
+# ─── Web application testing (C1, optional) ─────────────────────────────────────
+# zaproxy>=0.4.0             # OWASP ZAP Python client (webapp agent); needs a running ZAP
+#                             daemon + the `nuclei` binary on the host. Degrades gracefully
+#                             when absent. Kali: apt install -y zaproxy nuclei
+
 # ─── Networking / recon tools ──────────────────────────────────────────────────
 python-nmap>=0.7.1          # Nmap wrapper (nmap must be installed on host)
 dnspython>=2.6.0            # DNS enumeration
