@@ -98,6 +98,8 @@ Every agent runs on the **`BaseAgent`** foundation, which uses:
   prompt, so the cache is never silently invalidated
 - **Telemetry** — token usage, cache-hit rate, and USD cost tracked per agent
 - **Guardrails** — every tool input screened for destructive actions before it runs
+- **Content safety** — opt-in defense that detects + spotlights prompt-injection in
+  untrusted tool output before it re-enters the model context (`ENABLE_UNTRUSTED_CONTENT_DEFENSE`)
 
 ### Cost controls — model router + budget governor
 

@@ -32,7 +32,7 @@ and degrades gracefully if an optional dependency/backend is missing (the
 - **CI is three jobs — all green on GitHub:** offline test suite, Ruff lint, and
   pip-audit dependency audit (`.github/workflows/ci.yml`). Dependabot is active.
 - **The 10 `feat/*` branches still exist** locally (merged, safe to delete; never pushed).
-- **Test suite: 131 passing, fully offline** (no API key, no network — the Anthropic
+- **Test suite: 144 passing, fully offline** (no API key, no network — the Anthropic
   client and all external tools/backends are mocked). One benign Starlette/`TestClient`
   deprecation warning. **This offline guarantee is sacred — never add a test that needs
   network or a key.**
@@ -86,6 +86,13 @@ included in this handoff's roadmap per instruction. Nothing else depends on it.
 
 New CLI verbs added: `checkpoints`, `resume <id>`, `actors`, `serve-mcp`, plus
 `--actor` on `autonomous`/`mission`. New tests: 11 files, +83 tests (48 → 131).
+
+**Post-build (2026-06-11):** a productionization + capability pass on top of the 11
+workstreams — CI (pytest + Ruff lint + pip-audit, all green on GitHub), Dependabot,
+`SECURITY.md`, and a new **untrusted-content defense** (`core/content_safety.py`;
+opt-in `ENABLE_UNTRUSTED_CONTENT_DEFENSE`: prompt-injection detection + spotlighting
+of tool output; +13 tests → **144**). Full capability roadmap in
+`docs/CAPABILITY_RESEARCH.md`.
 
 ---
 

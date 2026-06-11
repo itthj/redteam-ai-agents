@@ -58,3 +58,9 @@ issue against infrastructure you are not authorized to touch.
   when `API_SECRET_KEY` is set.
 - **Dependencies:** CI runs `pip-audit` against the declared dependencies on every
   push; keep the build green.
+- **Untrusted content:** agents read target-controlled output (banners, fetched
+  pages, command results) — a prompt-injection vector (the *lethal trifecta*). Set
+  `ENABLE_UNTRUSTED_CONTENT_DEFENSE=true` to detect injection attempts (recorded as
+  findings) and spotlight tool output before it re-enters the model context.
+  Defense-in-depth only — the scope gate, guardrails, and operator stay
+  authoritative (`core/content_safety.py`, `docs/CAPABILITY_RESEARCH.md`).
