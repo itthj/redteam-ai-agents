@@ -12,6 +12,16 @@ by an intelligent orchestrator and connected to external tooling via the
 > ⚠️ **Authorized penetration testing and red-team operations only.**
 > Every action is scope-checked and logged. See *Legal Notice* below.
 
+## Try it in 10 seconds (no API key, no target)
+
+```bash
+python scripts/demo.py && start demo_report.html   # macOS/Linux: open / xdg-open
+```
+
+Seeds a synthetic engagement and writes an HTML report — demonstrating the
+prompt-injection defense, guardrails, and finding-validator with no network or real
+host. Full run/usage guide: **[QUICKSTART.md](QUICKSTART.md)**.
+
 ---
 
 ## Architecture
