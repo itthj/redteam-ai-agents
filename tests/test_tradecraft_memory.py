@@ -6,11 +6,9 @@ the recall_tradecraft planner tool, and first-message injection.
 """
 
 import asyncio
-from types import SimpleNamespace
 
 from config.settings import settings
 from core.memory import Lesson, TradecraftMemory
-
 
 # ── store / recall ───────────────────────────────────────────────────────────────
 

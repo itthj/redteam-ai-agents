@@ -25,7 +25,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
@@ -35,7 +35,7 @@ from config.settings import settings
 from core.attack_graph import graph
 from core.evidence_store import evidence
 from core.knowledge_base import kb
-from core.orchestrator import Orchestrator, _ALL_AGENTS
+from core.orchestrator import _ALL_AGENTS, Orchestrator
 from core.telemetry import telemetry
 from core.tracing import init_tracing
 

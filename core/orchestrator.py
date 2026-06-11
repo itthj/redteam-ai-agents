@@ -20,8 +20,9 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from dataclasses import asdict
-from typing import Callable, Optional
+from typing import Optional
 
 from agents.phase_agents import KALI_PHASES, PhaseAgent
 from config.settings import settings
@@ -507,8 +508,8 @@ class Orchestrator:
         lessons = memory.recall(ctx, k=3)
         if not lessons:
             return ""
-        lines = [f"- {l.situation} → {l.action} ({l.technique_id}) [{l.outcome}]"
-                 for l in lessons]
+        lines = [f"- {lesson.situation} → {lesson.action} ({lesson.technique_id}) [{lesson.outcome}]"
+                 for lesson in lessons]
         return ("# Recalled tradecraft (from past similar engagements — advisory)\n"
                 + "\n".join(lines) + "\n\n")
 

@@ -1,10 +1,11 @@
-name: tests
+name: CI
 
-# Runs the fully-offline test suite on every push/PR to main. The suite needs
-# NO Anthropic API key and NO network — tests/conftest.py force-sets a fake key
-# and isolated temp dirs, and the Anthropic client + every external backend are
-# mocked or degrade behind availability flags. This locks in the offline
-# guarantee as a regression gate.
+# Three gates on every push / PR to main:
+#   * pytest — the fully-offline test suite (NO Anthropic API key, NO network:
+#     tests/conftest.py force-sets a fake key + temp dirs, and the Anthropic
+#     client and every external backend are mocked or degrade behind flags).
+#   * lint   — Ruff (configuration lives in pyproject.toml).
+#   * audit  — pip-audit against the declared dependencies (known-CVE scan).
 
 on:
   push:
@@ -32,3 +33,29 @@ jobs:
           pip install -r requirements-test.txt
       - name: Run tests (no API key, no network)
         run: python -m pytest -q
+
+  lint:
+    name: ruff lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install lint tooling
+        run: pip install -r requirements-dev.txt
+      - name: Ruff
+        run: ruff check --output-format=github .
+
+  audit:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install pip-audit
+        run: pip install -r requirements-dev.txt
+      - name: pip-audit (production + test dependencies)
+        run: pip-audit -r requirements.txt -r requirements-test.txt

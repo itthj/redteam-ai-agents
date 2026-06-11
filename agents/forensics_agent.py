@@ -15,20 +15,15 @@ Responsibilities:
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
-import os
-import subprocess
 import time
 from pathlib import Path
 from typing import Optional
 
-from config.authorization import OperationType
 from config.settings import settings
 from core.attack_framework import attack
 from core.base_agent import BaseAgent
 from core.evidence_store import evidence
-from core.knowledge_base import kb
 
 log = logging.getLogger(__name__)
 

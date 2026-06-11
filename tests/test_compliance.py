@@ -1,6 +1,6 @@
 """Tests for compliance-mapped reporting + retest tracking (5F) — fully offline."""
 
-from core.compliance import (FindingsLedger, finding_signature, map_finding, rollup)
+from core.compliance import FindingsLedger, finding_signature, map_finding, rollup
 
 
 def test_map_finding():

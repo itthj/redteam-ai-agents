@@ -4,7 +4,6 @@ import pytest
 
 from core.guardrails import GuardrailViolation, guardrails
 
-
 # ── Destructive-command blocking ──────────────────────────────────────────────
 
 @pytest.mark.parametrize("command", [

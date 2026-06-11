@@ -10,7 +10,7 @@ def test_registry_has_eleven_phases():
 
 
 def test_every_phase_well_formed():
-    for key, spec in KALI_PHASES.items():
+    for _key, spec in KALI_PHASES.items():
         assert isinstance(spec, PhaseSpec)
         assert 1 <= spec.kali_no <= 15
         assert spec.name and spec.tactic and spec.mission

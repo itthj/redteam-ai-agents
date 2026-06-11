@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import ipaddress
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Optional
 
@@ -49,7 +49,7 @@ class EngagementScope:
         if settings.engagement_expiry:
             try:
                 self._expiry = datetime.fromisoformat(settings.engagement_expiry).replace(
-                    tzinfo=timezone.utc
+                    tzinfo=UTC
                 )
             except ValueError:
                 log.warning("Could not parse ENGAGEMENT_EXPIRY: %s", settings.engagement_expiry)
@@ -88,7 +88,7 @@ class EngagementScope:
     # ── Internal checks ───────────────────────────────────────────────────────
 
     def _check_expiry(self) -> None:
-        if self._expiry and datetime.now(timezone.utc) > self._expiry:
+        if self._expiry and datetime.now(UTC) > self._expiry:
             raise AuthorizationError(
                 f"Engagement {settings.engagement_id} expired at {self._expiry.isoformat()}. "
                 "Update ENGAGEMENT_EXPIRY in .env to continue."
@@ -137,7 +137,7 @@ class EngagementScope:
             "expiry": self._expiry.isoformat() if self._expiry else "none",
             "expired": (
                 self._expiry is not None
-                and datetime.now(timezone.utc) > self._expiry
+                and datetime.now(UTC) > self._expiry
             ),
         }
 

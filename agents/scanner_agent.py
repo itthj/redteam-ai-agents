@@ -17,14 +17,12 @@ AUTHORIZATION: Active scan — must check target scope before every scan.
 
 from __future__ import annotations
 
-import json
 import logging
 import socket
 import subprocess
 from typing import Optional
 
-from config.authorization import OperationType, scope
-from config.settings import settings
+from config.authorization import OperationType
 from core.base_agent import BaseAgent
 from core.knowledge_base import kb
 from core.message_bus import bus

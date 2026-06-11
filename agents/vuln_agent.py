@@ -15,7 +15,6 @@ Responsibilities:
 from __future__ import annotations
 
 import logging
-import re
 import subprocess
 from typing import Optional
 
@@ -204,7 +203,7 @@ WORKFLOW:
         if not script:
             return {"error": f"No default-cred script for service '{service}'"}
 
-        cmd = ["nmap", f"--script={script}", f"--script-args=brute.mode=user", "-p", str(port), target]
+        cmd = ["nmap", f"--script={script}", "--script-args=brute.mode=user", "-p", str(port), target]
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             return {"target": target, "service": service, "output": result.stdout[-2000:]}

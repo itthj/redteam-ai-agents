@@ -18,17 +18,13 @@ Active operations (port knocks, etc.) require authorization check.
 
 from __future__ import annotations
 
-import json
 import logging
-import socket
 import subprocess
 from typing import Optional
 
 import dns.resolver
 import dns.reversename
-import requests
 
-from config.authorization import OperationType
 from config.settings import settings
 from core.base_agent import BaseAgent
 from core.knowledge_base import kb

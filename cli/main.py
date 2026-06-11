@@ -21,9 +21,9 @@ import sys
 
 import click
 from rich.console import Console
+from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
-from rich.markdown import Markdown
 
 from config.authorization import scope
 from config.settings import settings
@@ -364,7 +364,7 @@ def actors():
               help="stdio (local) or sse (network)")
 def serve_mcp(transport):
     """Expose this red-team system to other tools as an MCP server."""
-    from mcp_layer.redteam_mcp_server import serve, _mcp_available
+    from mcp_layer.redteam_mcp_server import _mcp_available, serve
     if not _mcp_available():
         console.print("[yellow]MCP SDK not installed — run: pip install mcp[/yellow]")
         return

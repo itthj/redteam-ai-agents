@@ -29,7 +29,6 @@ import asyncio
 import logging
 import os
 from contextlib import AsyncExitStack
-from typing import Any
 
 from mcp_layer.mcp_config import get_enabled_servers
 
@@ -85,7 +84,7 @@ class MCPBridge:
         for name, cfg in self._servers.items():
             try:
                 await asyncio.wait_for(self._discover(name, cfg), timeout=_CONNECT_TIMEOUT)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 log.warning("[MCP] Server '%s' timed out during discovery — skipped", name)
             except Exception as e:
                 log.warning("[MCP] Server '%s' unavailable (%s) — skipped", name, e)
@@ -176,7 +175,7 @@ class MCPBridge:
                 self._invoke(cfg, real_tool, arguments),
                 timeout=_CALL_TIMEOUT,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return {"content": f"MCP tool '{tool_name}' timed out", "is_error": True}
         except Exception as e:
             log.error("[MCP] Tool '%s' failed: %s", tool_name, e)

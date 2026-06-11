@@ -61,8 +61,8 @@ async def dispatch(agent: str, task: str) -> str:
 def _preflight() -> bool:
     """Verify the engagement is configured before doing anything."""
     try:
-        from config.settings import settings
         from config.authorization import scope
+        from config.settings import settings
     except Exception as e:  # noqa: BLE001
         print(f"[FATAL] Configuration error: {e}", file=sys.stderr)
         print("        Copy .env.example to .env and fill it in.", file=sys.stderr)

@@ -9,7 +9,6 @@ starlette TestClient. No API key required.
 import asyncio
 import json
 
-
 # ── tracing ──────────────────────────────────────────────────────────────────────
 
 def test_span_noop_by_default():
@@ -20,8 +19,8 @@ def test_span_noop_by_default():
 
 
 def test_init_tracing_off_without_endpoint(monkeypatch):
-    from config.settings import settings
     import core.tracing as tracing
+    from config.settings import settings
     monkeypatch.setattr(settings, "otel_exporter_otlp_endpoint", "")
     monkeypatch.setattr(tracing, "_enabled", False)
     assert tracing.init_tracing() is False
@@ -31,6 +30,7 @@ def test_span_records_with_inmemory_exporter(monkeypatch):
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import SimpleSpanProcessor
     from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
     import core.tracing as tracing
 
     exporter = InMemorySpanExporter()
@@ -83,6 +83,7 @@ def test_dashboard_html_wires_eventsource():
 
 def test_dashboard_route_returns_html():
     from fastapi.testclient import TestClient
+
     import api.server as server
 
     client = TestClient(server.app)

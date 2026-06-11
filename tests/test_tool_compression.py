@@ -12,7 +12,7 @@ import asyncio
 from types import SimpleNamespace
 
 from config.settings import settings
-from core.base_agent import BaseAgent, _COMPRESS_THRESHOLD
+from core.base_agent import _COMPRESS_THRESHOLD, BaseAgent
 
 
 def _tool_use(name="scan", inputs=None, block_id="t1"):

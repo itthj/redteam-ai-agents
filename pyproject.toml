@@ -1,0 +1,29 @@
+# Project tooling configuration.
+#
+# Scope: Ruff (lint) only. Pytest configuration deliberately stays in pytest.ini
+# (unchanged), and there is no [project] table — the repo is run in-place from a
+# checkout, not installed as a package. Adding Ruff here gives the CI lint gate a
+# single, version-controlled source of truth.
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# E/F  — pycodestyle + Pyflakes core (real errors: undefined names, unused vars)
+# I    — import sorting (isort, applied automatically)
+# B    — flake8-bugbear (likely-bug heuristics)
+# UP   — pyupgrade (modern-syntax suggestions for the target version)
+# The opinionated flake8-simplify ("SIM") set is intentionally excluded — its
+# rewrites (e.g. try/except/pass -> contextlib.suppress) are style, not substance.
+select = ["E", "F", "I", "B", "UP"]
+ignore = [
+    "E501",   # line length — docstrings, ASCII diagrams and comment tables are hand-aligned
+    "UP045",  # keep explicit Optional[...] over `X | None` for annotation readability
+    "B008",   # function call in default arg — this is the FastAPI Depends()/Query() idiom
+    "UP042",  # `(str, Enum)` -> `StrEnum` would change str() output (behavior change), keep as-is
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Re-exports in package __init__ files look "unused" to Pyflakes but are intentional.
+"__init__.py" = ["F401"]

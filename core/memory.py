@@ -71,7 +71,7 @@ class Lesson:
     outcome: str = ""
     target_profile: str = ""
 
-    def redacted(self) -> "Lesson":
+    def redacted(self) -> Lesson:
         return Lesson(_redact(self.situation), _redact(self.action), self.technique_id,
                       _redact(self.outcome), _redact(self.target_profile))
 
@@ -80,7 +80,7 @@ class Lesson:
                          self.target_profile]).lower()
 
     @classmethod
-    def from_dict(cls, d: dict) -> "Lesson":
+    def from_dict(cls, d: dict) -> Lesson:
         return cls(
             situation=d.get("situation", ""),
             action=d.get("action", ""),
