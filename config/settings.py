@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     # opt-in: detect + spotlight prompt-injection in untrusted tool output before it
     # re-enters the model context (defense-in-depth; see core/content_safety.py)
     enable_untrusted_content_defense: bool = False
+    # opt-in: clear old tool output from the running history once it grows past
+    # compact_after_chars, so long autonomous runs don't exhaust context
+    compact_history: bool = False
+    compact_after_chars: int = 60000
 
     # ── Engagement Authorization ──────────────────────────────────────────────
     authorized_targets: str = ""

@@ -54,6 +54,32 @@ _CACHE = {"type": "ephemeral"}
 # linpeas dumps routinely exceed this; smaller results pass through untouched.
 _COMPRESS_THRESHOLD = 6000
 
+# Context compaction (opt-in). Once the running history exceeds compact_after_chars,
+# the content of OLD tool_result blocks is truncated to a short head ("tool-result
+# clearing" — Anthropic's safest, lightest-touch compaction), keeping the most recent
+# turns and ALL message structure intact (tool_use/tool_result pairing never breaks).
+# Findings are persisted to the KB/EvidenceStore before their raw output is cleared.
+_KEEP_RECENT_MSGS = 6
+_TOOL_RESULT_KEEP = 400
+_CLEARED_PREFIX = "[older tool output cleared to save context]\n"
+
+
+def _history_chars(messages: list) -> int:
+    """Rough char-count proxy for the size of the running message history."""
+    total = 0
+    for msg in messages:
+        content = msg.get("content") if isinstance(msg, dict) else None
+        if isinstance(content, str):
+            total += len(content)
+        elif isinstance(content, list):
+            for block in content:
+                if isinstance(block, dict):
+                    val = block.get("content") or block.get("text") or ""
+                    total += len(val) if isinstance(val, str) else len(str(val))
+                else:
+                    total += len(getattr(block, "text", "") or "")
+    return total
+
 
 class BaseAgent:
     """
@@ -113,6 +139,12 @@ class BaseAgent:
         for iteration in range(1, self.MAX_ITERATIONS + 1):
             # ── Budget governor (5A) — checked before each turn ──────────────
             # No-op unless engagement_budget_usd is set and already exceeded.
+            # ── Context compaction (5A/long-horizon, opt-in) ─────────────────
+            # Clear old tool output once history grows large, so long autonomous
+            # runs don't exhaust context. Structure-preserving (safe).
+            if settings.compact_history:
+                self._maybe_compact_history(messages)
+
             if telemetry.over_budget():
                 if settings.on_budget_exceeded == "halt":
                     log.warning("[%s] Engagement budget exceeded — halting (mode=halt)",
@@ -353,6 +385,35 @@ class BaseAgent:
             return text
         return (f"[compressed {len(text)}→{len(compressed)} chars via {model}]\n"
                 f"{compressed}")
+
+    def _maybe_compact_history(self, messages: list) -> int:
+        """
+        Tool-result clearing (opt-in): once the running history exceeds
+        settings.compact_after_chars, truncate the content of OLD, large
+        tool_result blocks to a short head, keeping the most recent turns and all
+        message structure intact (tool_use/tool_result pairing never breaks).
+        Returns the number of chars reclaimed. Findings are already persisted to
+        the KB/EvidenceStore before their raw output is cleared, so nothing is lost.
+        """
+        if _history_chars(messages) <= settings.compact_after_chars:
+            return 0
+        saved = 0
+        cutoff = max(0, len(messages) - _KEEP_RECENT_MSGS)
+        for msg in messages[:cutoff]:
+            content = msg.get("content") if isinstance(msg, dict) else None
+            if not isinstance(content, list):
+                continue
+            for block in content:
+                if not (isinstance(block, dict) and block.get("type") == "tool_result"):
+                    continue
+                c = block.get("content")
+                if isinstance(c, str) and len(c) > _TOOL_RESULT_KEEP and not c.startswith(_CLEARED_PREFIX):
+                    block["content"] = _CLEARED_PREFIX + c[:_TOOL_RESULT_KEEP]
+                    saved += len(c) - len(block["content"])
+        if saved:
+            log.info("[%s] compacted history (-%d chars of stale tool output)",
+                     self.NAME.upper(), saved)
+        return saved
 
     async def _execute_tool(self, name: str, inputs: dict) -> tuple[str, bool]:
         """Run one tool (native or MCP). Returns (result_text, is_error)."""
