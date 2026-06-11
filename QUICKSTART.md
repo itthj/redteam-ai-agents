@@ -36,11 +36,17 @@ python main.py agents       # the 18 agents and what they do
 
 ## 3. Live dashboard (no key needed to view)
 
+Easiest — double-click **`run_dashboard.bat`**, or run:
+
 ```powershell
-uvicorn api.server:app --host 127.0.0.1 --port 8000
+python scripts/dashboard.py
 ```
-Then open <http://127.0.0.1:8000/dashboard> — a live view of phase, telemetry,
-findings, and the attack graph (updates over Server-Sent Events).
+This starts the server *and* opens <http://localhost:8000/dashboard> for you — a live
+view of phase, telemetry, findings, and the attack graph (Server-Sent Events).
+
+**Leave the window open** (it's a live server, not a file). Open it with **`localhost`**,
+never `0.0.0.0` (that address is not browsable). Manual form:
+`python -m uvicorn api.server:app --host 127.0.0.1 --port 8000`.
 
 ## 4. The real thing — a live engagement (needs an API key + an authorized target)
 
