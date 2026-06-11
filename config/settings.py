@@ -84,6 +84,17 @@ class Settings(BaseSettings):
     virustotal_api_key: str = ""   # 5D — threat-intel MCP
     siem_token: str = ""           # 5D — SIEM MCP (read-only)
 
+    # ── Web application testing (C1) ──────────────────────────────────────────
+    # OWASP ZAP daemon + Nuclei. All optional/safe-default — the webapp agent
+    # degrades to native checks if ZAP/nuclei are unreachable (graceful degradation).
+    zap_api_url: str = "http://127.0.0.1:8090"   # ZAP daemon address
+    zap_api_key: str = ""                          # ZAP API key ("" = ZAP's disabled-key mode)
+    nuclei_path: str = "nuclei"                    # nuclei binary (on PATH by default)
+    # Intrusive web scanning (ZAP active scan / nuclei DAST) sends attack traffic to
+    # the target, so it needs explicit WRITTEN authorization for THIS engagement.
+    # Default off → the agent cannot actively scan without a deliberate operator opt-in.
+    webapp_active_scan_authorized: bool = False
+
     # ── Metasploit RPC ────────────────────────────────────────────────────────
     msfrpc_host: str = "127.0.0.1"
     msfrpc_port: int = 55553

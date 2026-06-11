@@ -27,6 +27,7 @@ class OperationType(str, Enum):
     PASSIVE_RECON = "passive_recon"       # OSINT, DNS lookups, Shodan — no packets sent
     ACTIVE_SCAN = "active_scan"           # Nmap, banner grabbing — packets to target
     VULNERABILITY_SCAN = "vuln_scan"      # Authenticated / unauthenticated vuln scanning
+    WEB_ACTIVE_SCAN = "web_active_scan"   # Intrusive web-app scanning (ZAP active scan, nuclei DAST)
     EXPLOITATION = "exploitation"         # Active exploitation attempts
     POST_EXPLOITATION = "post_exploit"    # Lateral movement, persistence, data access
     FORENSICS = "forensics"              # Evidence collection, log analysis
