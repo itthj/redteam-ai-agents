@@ -189,7 +189,25 @@ uvicorn api.server:app --host 0.0.0.0 --port 8000
 # docs: http://localhost:8000/docs
 ```
 
-### 5. Docker
+Endpoints include engagements (`/engagements`, with background `…/run` & `…/stop`),
+the finding lifecycle + approval queue (`/findings`, `/findings/queue`,
+`POST /findings/{sig}/approve|reject`), evidence, reports (`/reports`), and live
+streams over SSE (`/events`) and WebSocket (`/ws`).
+
+### 5. Client dashboard (React/Vite)
+
+A full client-facing dashboard — KPI overview, engagements, the findings table with the
+candidate/confirmed/approved states, the approval queue, live agent activity, and live
+token/USD cost. See [`frontend/`](frontend/README.md):
+
+```bash
+uvicorn api.server:app --port 8000          # backend
+cd frontend && npm install && npm run dev    # http://localhost:5173
+```
+
+(The zero-build static `/dashboard` page still works for a quick look without Node.)
+
+### 6. Docker
 
 ```bash
 docker-compose up -d

@@ -7,6 +7,24 @@ All notable changes to `redteam-ai-agents` are recorded here. This file tracks t
 
 ## [Unreleased]
 
+### C4 — Client dashboard (full API + React/Vite frontend)
+Turned the FastAPI app into a client-facing API and added a React dashboard that streams
+live engagement state.
+
+- **Changed** `api/server.py` — engagements (`GET /engagements`, `GET /engagements/{id}`)
+  with background run control (`POST …/run` starts an asyncio task, `POST …/stop` cancels
+  it) + run status; reports (`GET /reports`, `GET /reports/{name}` with a path-traversal
+  guard); a WebSocket `/ws` live stream; the SSE/WS payload now also carries finding-state
+  counts, run status, and recent agent activity (message-bus history).
+- **New** `frontend/` — React (Vite) app: KPI overview (phase, live USD cost, cache hit,
+  approved count, targets), engagement detail with Start/Stop, findings table with
+  candidate/confirmed/approved badges, approval queue (Approve/Reject), and live activity.
+  Talks to the backend over REST + SSE; built and run on the Kali host (`npm install && npm run dev`).
+- The existing zero-build static `/dashboard` page is unchanged.
+- **Tests:** +10 offline API tests (`test_dashboard_api.py`) incl. background run/stop and the
+  WebSocket. Suite: 240 → **250** passing. (Frontend is outside the Python gate.)
+- **Note:** ships open-on-localhost; OAuth2/JWT + RBAC + multi-engagement selection land in C7.
+
 ### C3 — Compliance-mapped reporting (ISO 27001 · PCI · CBK · Kenya DPA)
 Extended the reporting layer to map every finding to four named frameworks and to
 produce three report tiers from one engagement (structure on PTES, severity on CVSS).
