@@ -124,7 +124,12 @@ Python layer. No `temperature`/`top_p`/`top_k`/`budget_tokens` are sent (all of 
 400 on Opus 4.7/4.8). This was a static + SDK-introspection check, **not** a live API call —
 the actual wire round-trip is still part of 4.1 (needs a real key). Reference: `claude-api` skill.
 
-**4.3 — Install + validate the FULL `requirements.txt`.** The venv only has test deps.
+**4.3 — Install + validate the FULL `requirements.txt`. [DONE 2026-06-11]** A fresh
+Python 3.12 venv at `C:\Users\james\venvs\redteam-ai-agents-py312` (outside OneDrive)
+installs the entire `requirements.txt` — every module imports (torch 2.12,
+sentence-transformers 5.5.1, cryptography, bcrypt, python-nmap, shodan, lxml, …) and
+the offline suite (179) passes on it. The original note below is kept for context.
+The 3.14 test venv only has test deps.
 Production needs `aiohttp, aiofiles, sqlalchemy, aiosqlite, cryptography, bcrypt,
 python-nmap, dnspython, shodan, requests, click, rich, tabulate, jinja2,
 mcp-server-fetch`, etc. Several are native-extension packages. **Strongly recommend a
