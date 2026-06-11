@@ -22,6 +22,7 @@ from config.settings import settings
 from core.base_agent import BaseAgent
 from core.compliance import ledger, map_finding, rollup
 from core.evidence_store import evidence
+from core.finding_validator import finding_validator
 from core.knowledge_base import kb
 from core.report_export import render_html
 
@@ -54,6 +55,8 @@ WRITING RULES:
 - Technical findings: precise, reproducible, with CVE IDs where applicable
 - Remediation: specific, actionable, ranked by effort vs risk reduction
 - NEVER include real credentials in the report
+- Call validate_findings before finalizing; label any finding flagged "needs-review" or
+  "likely-false-positive" as "(unverified — requires manual verification)" and do not overstate it
 """
 
     TOOLS = [
@@ -108,6 +111,14 @@ WRITING RULES:
                            "resolved) for retest tracking.",
             "input_schema": {"type": "object", "properties": {}, "required": []},
         },
+        {
+            "name": "validate_findings",
+            "description": "Deterministically validate all findings against scan/evidence "
+                           "facts (no model call). Returns a confidence + verdict per "
+                           "finding (validated / needs-review / likely-false-positive) to "
+                           "catch hallucinated findings before they enter the report.",
+            "input_schema": {"type": "object", "properties": {}, "required": []},
+        },
     ]
 
     def _tool_map(self):
@@ -118,6 +129,7 @@ WRITING RULES:
             "save_report": self._save_report,
             "map_to_compliance": self._map_to_compliance,
             "compliance_rollup": self._compliance_rollup,
+            "validate_findings": self._validate_findings,
         }
 
     # ── Tool implementations ──────────────────────────────────────────────────
@@ -219,6 +231,10 @@ WRITING RULES:
 
     def _map_to_compliance(self, technique_id: str) -> dict:
         return map_finding(technique_id)
+
+    def _validate_findings(self) -> dict:
+        """Deterministic anti-hallucination grading of all current findings."""
+        return finding_validator.validate_all(kb.get_all_targets(), evidence.get_all())
 
     def _compliance_rollup(self) -> dict:
         findings = []
