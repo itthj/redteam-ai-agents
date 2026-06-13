@@ -17,6 +17,7 @@ import logging
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Optional
+from urllib.parse import urlparse
 
 from config.settings import settings
 
@@ -30,6 +31,7 @@ class OperationType(str, Enum):
     WEB_ACTIVE_SCAN = "web_active_scan"   # Intrusive web-app scanning (ZAP active scan, nuclei DAST)
     AD_STATE_CHANGE = "ad_state_change"   # State-changing AD action (NetExec exec, Certipy request)
     PHISHING = "phishing"                 # Social-engineering / phishing send (outbound to humans)
+    LLM_REDTEAM = "llm_redteam"           # LLM red-team assessment (garak/PyRIT) of a client app
     EXPLOITATION = "exploitation"         # Active exploitation attempts
     POST_EXPLOITATION = "post_exploit"    # Lateral movement, persistence, data access
     FORENSICS = "forensics"              # Evidence collection, log analysis
@@ -123,6 +125,49 @@ class EngagementScope:
         for entry in settings.authorized_email_domains_list:
             d = entry.strip().lower().lstrip("@").lstrip("*").lstrip(".")
             if d and (domain == d or domain.endswith("." + d)):
+                return True
+        return False
+
+    # ── LLM-endpoint gate (C8 — LLM red teaming) ──────────────────────────────
+
+    def authorize_endpoint(self, url: str, agent_name: str = "unknown") -> None:
+        """Raise AuthorizationError unless `url` is an authorized client LLM endpoint.
+        LLM red teaming is assessment-only and scoped to the client's own app."""
+        self._check_expiry()
+        if not settings.authorized_llm_endpoints_list:
+            raise AuthorizationError(
+                "No authorized LLM endpoints defined. Set AUTHORIZED_LLM_ENDPOINTS in "
+                ".env before red-teaming any LLM app."
+            )
+        if not self._is_endpoint_authorized(url):
+            raise AuthorizationError(
+                f"LLM endpoint '{url}' is NOT authorized for engagement "
+                f"{settings.engagement_id}. Authorized: "
+                f"{', '.join(settings.authorized_llm_endpoints_list)}"
+            )
+        log.info("[AUTH OK] agent=%s operation=llm_redteam endpoint=%s engagement=%s",
+                 agent_name, url, settings.engagement_id)
+
+    def is_endpoint_authorized(self, url: str) -> bool:
+        """Non-throwing LLM-endpoint check."""
+        try:
+            self.authorize_endpoint(url)
+            return True
+        except AuthorizationError:
+            return False
+
+    @staticmethod
+    def _host(value: str) -> str:
+        return urlparse(value if "//" in value else f"//{value}").hostname or value.lower()
+
+    def _is_endpoint_authorized(self, url: str) -> bool:
+        target = (url or "").strip().lower()
+        if not target:
+            return False
+        target_host = self._host(target)
+        for entry in settings.authorized_llm_endpoints_list:
+            e = entry.strip().lower()
+            if target == e or target.startswith(e) or (target_host and target_host == self._host(e)):
                 return True
         return False
 

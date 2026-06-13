@@ -50,7 +50,7 @@ _AGENT_PHASES = {
 
 # Deep bespoke agents + the 11 Kali-aligned phase agents = full roster
 _DEEP_AGENTS = ["recon", "scanner", "vuln", "webapp", "exploit", "post_exploit",
-                "validation", "forensics", "reporting"]
+                "validation", "llm_redteam", "forensics", "reporting"]
 _ALL_AGENTS = _DEEP_AGENTS + sorted(KALI_PHASES)
 
 
@@ -89,6 +89,7 @@ Deep agents:
   exploit       — controlled exploitation (authorization-gated)
   post_exploit  — enumeration, privesc analysis, lateral-movement mapping
   validation    — deterministically re-tests candidate findings → confirms reproduced ones
+  llm_redteam   — LLM app red teaming (garak + PyRIT), mapped to the OWASP LLM Top 10
   forensics     — timeline, MITRE ATT&CK mapping, artifact collection
   reporting     — executive + technical report generation
 
@@ -359,6 +360,9 @@ class Orchestrator:
             elif name == "validation":
                 from agents.validation_agent import ValidationAgent
                 self._agents[name] = ValidationAgent()
+            elif name == "llm_redteam":
+                from agents.llm_redteam_agent import LLMRedTeamAgent
+                self._agents[name] = LLMRedTeamAgent()
             elif name == "forensics":
                 from agents.forensics_agent import ForensicsAgent
                 self._agents[name] = ForensicsAgent()

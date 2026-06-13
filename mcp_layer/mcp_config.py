@@ -120,6 +120,18 @@ MCP_SERVERS: dict[str, dict] = {
                            "gp_create_group", "gp_launch_campaign"],
     },
 
+    # ── AI / LLM red teaming (C8) — in-repo garak + PyRIT server ──────────────
+    # Assessment-only, scoped to an AUTHORIZED_LLM_ENDPOINTS entry + LLM_REDTEAM_AUTHORIZED.
+    # Findings map to the OWASP Top 10 for LLM Apps. Degrades gracefully if garak/PyRIT absent.
+    "llm_redteam": {
+        "transport": "stdio",
+        "command": _PY,
+        "args": ["-m", "mcp_layer.servers.llm_redteam_server"],
+        "description": "LLM red teaming — garak + PyRIT (authorized endpoints only)",
+        "tool_prefix": "llm",
+        "tool_allowlist": ["garak_scan", "pyrit_probe"],
+    },
+
     # ── Custom security-tool server (template — you build this) ───────────────
     "sectools": {
         "transport": "stdio",

@@ -83,6 +83,12 @@ class Settings(BaseSettings):
     authorized_email_domains: str = ""      # comma-separated, e.g. "acme.co.ke,*.acme.com"
     phishing_authorized: bool = False       # written-authorization flag for THIS engagement
 
+    # ── AI / LLM red teaming (C8) ─────────────────────────────────────────────
+    # garak (baseline) + PyRIT (multi-turn) against a client-AUTHORIZED LLM endpoint.
+    authorized_llm_endpoints: str = ""      # comma-separated endpoint URLs/hosts
+    llm_redteam_authorized: bool = False    # written-authorization flag for active LLM probing
+    garak_path: str = "garak"               # garak binary
+
     # ── Engagement Authorization ──────────────────────────────────────────────
     authorized_targets: str = ""
     engagement_id: str = "ENG-UNKNOWN"
@@ -198,6 +204,11 @@ class Settings(BaseSettings):
     def authorized_email_domains_list(self) -> list[str]:
         """Parsed list of authorized client email domains (C6 phishing)."""
         return [d.strip() for d in self.authorized_email_domains.split(",") if d.strip()]
+
+    @property
+    def authorized_llm_endpoints_list(self) -> list[str]:
+        """Parsed list of authorized client LLM endpoints (C8 LLM red teaming)."""
+        return [e.strip() for e in self.authorized_llm_endpoints.split(",") if e.strip()]
 
     def ensure_dirs(self) -> None:
         """Create data directories if they don't exist."""

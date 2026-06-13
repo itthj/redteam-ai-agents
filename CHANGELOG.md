@@ -7,6 +7,25 @@ All notable changes to `redteam-ai-agents` are recorded here. This file tracks t
 
 ## [Unreleased]
 
+### C8 — AI / LLM red teaming (`llm_redteam` agent + MCP server)
+Added an `llm_redteam` deep agent and an in-repo `llm_redteam` MCP server running garak
+(baseline) and PyRIT (multi-turn / indirect prompt injection) against a client-authorized
+LLM endpoint; findings map to the OWASP Top 10 for LLM Applications (LLM01 = prompt injection).
+
+- **New** `mcp_layer/servers/llm_redteam_server.py` — `garak_scan` (subprocess, parses the
+  report jsonl) + `pyrit_probe` (lazy PyRIT). Assessment-only; scope-gated to an authorized
+  endpoint AND `LLM_REDTEAM_AUTHORIZED`-gated. Findings recorded as candidates (C2) + evidence.
+- **New** `agents/llm_redteam_agent.py` (orchestrator roster) and `core/owasp_llm_map.py`
+  (garak probe / PyRIT scenario → LLM01–LLM10).
+- **New scope concept** `config/authorization.py` — `scope.authorize_endpoint` /
+  `is_endpoint_authorized` + `OperationType.LLM_REDTEAM`.
+- **Changed** `config/settings.py` / `.env.example` / `mcp_config.py` —
+  `AUTHORIZED_LLM_ENDPOINTS`, `LLM_REDTEAM_AUTHORIZED` (default off), `GARAK_PATH`; `llm_redteam`
+  server registered.
+- **Degradation:** garak/PyRIT absent ⇒ a `degraded` result, never a crash.
+- **Tests:** +13 offline tests (`test_owasp_llm_map`, `test_llm_redteam_server`). Suite: 296 → **309**.
+- **Kali install:** `pip install garak pyrit-ai`.
+
 ### C7 — Multi-tenant SaaS backend (`saas/`)
 Added an additive multi-tenant layer over the single-engagement core (core singletons
 untouched). New `saas/` package:
