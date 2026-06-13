@@ -1,5 +1,5 @@
 # Developer / CI tooling. NOT needed at runtime or by the offline test suite —
 # these power the lint and dependency-audit gates only.
 
-ruff>=0.15          # linter (replaces flake8 + isort); config in pyproject.toml
-pip-audit>=2.7      # scans declared dependencies for known CVEs (PyPI advisory DB)
+ruff>=0.15.17          # linter (replaces flake8 + isort); config in pyproject.toml
+pip-audit>=2.10.1      # scans declared dependencies for known CVEs (PyPI advisory DB)
