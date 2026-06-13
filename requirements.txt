@@ -1,15 +1,15 @@
 # ─── Core AI ───────────────────────────────────────────────────────────────────
-anthropic>=0.69.0           # Claude SDK — Opus 4.8, adaptive thinking, effort, caching
-mcp>=1.2.0                  # Model Context Protocol — connect agents to external tools
-mcp-server-fetch>=2025.1.0  # MCP fetch server — the ready-to-use 'web' server
+anthropic>=0.109.1           # Claude SDK — Opus 4.8, adaptive thinking, effort, caching
+mcp>=1.27.2                  # Model Context Protocol — connect agents to external tools
+mcp-server-fetch>=2026.6.4  # MCP fetch server — the ready-to-use 'web' server
 
 # ─── Web / API layer ───────────────────────────────────────────────────────────
-fastapi>=0.111.0
-uvicorn[standard]>=0.29.0
-python-multipart>=0.0.9
+fastapi>=0.136.3
+uvicorn[standard]>=0.49.0
+python-multipart>=0.0.32
 
 # ─── Multi-tenant SaaS backend (C7) ──────────────────────────────────────────────
-PyJWT>=2.8.0                # OAuth2/JWT auth (HS256)
+PyJWT>=2.13.0                # OAuth2/JWT auth (HS256)
 # Optional — the SaaS layer degrades gracefully without these (sqlite + sync runner):
 # celery>=5.3                # async scan jobs (needs a broker)
 # redis>=5.0                 # Celery broker / result backend
@@ -18,26 +18,26 @@ PyJWT>=2.8.0                # OAuth2/JWT auth (HS256)
 # cryptography>=42.0         # Fernet at-rest encryption (already listed below)
 
 # ─── Validation & config ───────────────────────────────────────────────────────
-pydantic>=2.7.0
-pydantic-settings>=2.2.0
-python-dotenv>=1.0.0
+pydantic>=2.13.4
+pydantic-settings>=2.14.1
+python-dotenv>=1.2.2
 
 # ─── Async / HTTP ──────────────────────────────────────────────────────────────
-aiohttp>=3.9.0
-aiofiles>=23.2.0
-httpx>=0.27.0
+aiohttp>=3.14.1
+aiofiles>=25.1.0
+httpx>=0.28.1
 
 # ─── Storage ───────────────────────────────────────────────────────────────────
-sqlalchemy>=2.0.0
-aiosqlite>=0.20.0           # async SQLite for evidence store
+sqlalchemy>=2.0.50
+aiosqlite>=0.22.1           # async SQLite for evidence store
 
 # ─── Attack graph (2A) ──────────────────────────────────────────────────────────
-networkx>=3.0               # in-process attack graph — the default backend
+networkx>=3.6.1               # in-process attack graph — the default backend
 # neo4j>=5.0                 # OPTIONAL — live BloodHound-style graph browser (see .env)
 
 # ─── Tracing (5C) ───────────────────────────────────────────────────────────────
-opentelemetry-api>=1.20
-opentelemetry-sdk>=1.20
+opentelemetry-api>=1.42.1
+opentelemetry-sdk>=1.42.1
 # opentelemetry-exporter-otlp-proto-http>=1.20  # OPTIONAL — needed to actually export spans
 
 # ─── Semantic memory (2C, optional) ──────────────────────────────────────────────
@@ -45,8 +45,8 @@ opentelemetry-sdk>=1.20
 #                                degrades to keyword overlap when absent (MEMORY_SEMANTIC_RECALL)
 
 # ─── Security / crypto ─────────────────────────────────────────────────────────
-cryptography>=42.0.0
-bcrypt>=4.1.0
+cryptography>=49.0.0
+bcrypt>=5.0.0
 
 # ─── Web application testing (C1, optional) ─────────────────────────────────────
 # zaproxy>=0.4.0             # OWASP ZAP Python client (webapp agent); needs a running ZAP
@@ -55,18 +55,18 @@ bcrypt>=4.1.0
 
 # ─── Networking / recon tools ──────────────────────────────────────────────────
 python-nmap>=0.7.1          # Nmap wrapper (nmap must be installed on host)
-dnspython>=2.6.0            # DNS enumeration
+dnspython>=2.8.0            # DNS enumeration
 shodan>=1.31.0              # Shodan API
-requests>=2.31.0
+requests>=2.34.2
 
 # ─── CLI / output ──────────────────────────────────────────────────────────────
-click>=8.1.0
-rich>=13.7.0                # beautiful terminal output
-tabulate>=0.9.0
+click>=8.4.1
+rich>=15.0.0                # beautiful terminal output
+tabulate>=0.10.0
 
 # ─── Templating (reports) ──────────────────────────────────────────────────────
-jinja2>=3.1.0
+jinja2>=3.1.6
 
 # ─── Testing ───────────────────────────────────────────────────────────────────
-pytest>=8.2.0
-pytest-asyncio>=0.23.0
+pytest>=9.0.3
+pytest-asyncio>=1.4.0
