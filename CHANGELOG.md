@@ -7,6 +7,23 @@ All notable changes to `redteam-ai-agents` are recorded here. This file tracks t
 
 ## [Unreleased]
 
+### C9 — Cloud & container posture (`cloud` agent + MCP server)
+Added a `cloud` deep agent and an in-repo `cloud` MCP server running Prowler (AWS/Azure/
+GCP/Kubernetes CSPM) and Trivy (container/image/IaC) with read-only credentials. Each
+failed check becomes a candidate finding with a normalized severity AND the compliance
+controls the tool tagged it with (CIS/NIST/PCI…), feeding the C3 compliance reporting.
+
+- **New** `mcp_layer/servers/cloud_server.py` — `prowler_scan` + `trivy_scan` with JSON
+  parsers; read-only; scope-gated to `AUTHORIZED_CLOUD_ACCOUNTS`. Findings → candidates (C2)
+  + evidence. Graceful degradation when prowler/trivy absent.
+- **New** `agents/cloud_agent.py` (orchestrator roster).
+- **New scope concept** `config/authorization.py` — `scope.authorize_cloud` /
+  `is_cloud_authorized` + `OperationType.CLOUD_POSTURE`.
+- **Changed** `config/settings.py` / `.env.example` / `mcp_config.py` —
+  `AUTHORIZED_CLOUD_ACCOUNTS`, `PROWLER_PATH`, `TRIVY_PATH`; `cloud` server registered.
+- **Tests:** +9 offline tests (`test_cloud_server.py`). Suite: 309 → **318**.
+- **Kali install:** `pip install prowler`; install `trivy` (apt or the Aqua script).
+
 ### C8 — AI / LLM red teaming (`llm_redteam` agent + MCP server)
 Added an `llm_redteam` deep agent and an in-repo `llm_redteam` MCP server running garak
 (baseline) and PyRIT (multi-turn / indirect prompt injection) against a client-authorized

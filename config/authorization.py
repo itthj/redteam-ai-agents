@@ -32,6 +32,7 @@ class OperationType(str, Enum):
     AD_STATE_CHANGE = "ad_state_change"   # State-changing AD action (NetExec exec, Certipy request)
     PHISHING = "phishing"                 # Social-engineering / phishing send (outbound to humans)
     LLM_REDTEAM = "llm_redteam"           # LLM red-team assessment (garak/PyRIT) of a client app
+    CLOUD_POSTURE = "cloud_posture"       # Read-only cloud/container posture scan (Prowler/Trivy)
     EXPLOITATION = "exploitation"         # Active exploitation attempts
     POST_EXPLOITATION = "post_exploit"    # Lateral movement, persistence, data access
     FORENSICS = "forensics"              # Evidence collection, log analysis
@@ -168,6 +169,44 @@ class EngagementScope:
         for entry in settings.authorized_llm_endpoints_list:
             e = entry.strip().lower()
             if target == e or target.startswith(e) or (target_host and target_host == self._host(e)):
+                return True
+        return False
+
+    # ── Cloud/container resource gate (C9 — Prowler / Trivy) ───────────────────
+
+    def authorize_cloud(self, resource: str, agent_name: str = "unknown") -> None:
+        """Raise AuthorizationError unless `resource` (a cloud account / subscription /
+        project, or a container image for Trivy) is in the authorized list."""
+        self._check_expiry()
+        if not settings.authorized_cloud_accounts_list:
+            raise AuthorizationError(
+                "No authorized cloud accounts defined. Set AUTHORIZED_CLOUD_ACCOUNTS in "
+                ".env before any cloud/container posture scan."
+            )
+        if not self._is_cloud_authorized(resource):
+            raise AuthorizationError(
+                f"Cloud resource '{resource}' is NOT authorized for engagement "
+                f"{settings.engagement_id}. Authorized: "
+                f"{', '.join(settings.authorized_cloud_accounts_list)}"
+            )
+        log.info("[AUTH OK] agent=%s operation=cloud_posture resource=%s engagement=%s",
+                 agent_name, resource, settings.engagement_id)
+
+    def is_cloud_authorized(self, resource: str) -> bool:
+        """Non-throwing cloud-resource check."""
+        try:
+            self.authorize_cloud(resource)
+            return True
+        except AuthorizationError:
+            return False
+
+    def _is_cloud_authorized(self, resource: str) -> bool:
+        target = (resource or "").strip().lower()
+        if not target:
+            return False
+        for entry in settings.authorized_cloud_accounts_list:
+            e = entry.strip().lower()
+            if e and (target == e or target.startswith(e + "/") or target.startswith(e + ":")):
                 return True
         return False
 

@@ -89,6 +89,12 @@ class Settings(BaseSettings):
     llm_redteam_authorized: bool = False    # written-authorization flag for active LLM probing
     garak_path: str = "garak"               # garak binary
 
+    # ── Cloud & container posture (C9) ────────────────────────────────────────
+    # Prowler (CSPM) + Trivy (container/image/IaC) with READ-ONLY client credentials.
+    authorized_cloud_accounts: str = ""     # comma-separated accounts/subscriptions/projects/images
+    prowler_path: str = "prowler"
+    trivy_path: str = "trivy"
+
     # ── Engagement Authorization ──────────────────────────────────────────────
     authorized_targets: str = ""
     engagement_id: str = "ENG-UNKNOWN"
@@ -209,6 +215,11 @@ class Settings(BaseSettings):
     def authorized_llm_endpoints_list(self) -> list[str]:
         """Parsed list of authorized client LLM endpoints (C8 LLM red teaming)."""
         return [e.strip() for e in self.authorized_llm_endpoints.split(",") if e.strip()]
+
+    @property
+    def authorized_cloud_accounts_list(self) -> list[str]:
+        """Parsed list of authorized cloud accounts / images (C9 posture)."""
+        return [a.strip() for a in self.authorized_cloud_accounts.split(",") if a.strip()]
 
     def ensure_dirs(self) -> None:
         """Create data directories if they don't exist."""

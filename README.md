@@ -3,7 +3,7 @@
 [![tests](https://github.com/itthj/redteam-ai-agents/actions/workflows/ci.yml/badge.svg)](https://github.com/itthj/redteam-ai-agents/actions/workflows/ci.yml)
 
 A state-of-the-art **multi-agent cybersecurity operations platform** built on the
-**Anthropic Claude SDK** (Claude Opus 4.8). **21 specialist AI agents** — 10 deep
+**Anthropic Claude SDK** (Claude Opus 4.8). **22 specialist AI agents** — 11 deep
 agents plus 11 kill-chain phase agents mapped one-to-one to the Kali Linux
 operational categories (01–15) — cover the full attack lifecycle, coordinated
 by an intelligent orchestrator and connected to external tooling via the
@@ -57,7 +57,7 @@ host. Full run/usage guide: **[QUICKSTART.md](QUICKSTART.md)**.
                           └────────────────┘
 ```
 
-### Deep agents (10) — bespoke tooling
+### Deep agents (11) — bespoke tooling
 
 | Agent | Responsibility |
 |-------|----------------|
@@ -69,6 +69,7 @@ host. Full run/usage guide: **[QUICKSTART.md](QUICKSTART.md)**.
 | **post_exploit** | Enumeration, privesc, lateral-movement discovery |
 | **validation** | Deterministically re-tests candidate findings → confirms only reproduced ones (anti-hallucination) |
 | **llm_redteam** | LLM app red teaming — garak + PyRIT, mapped to the OWASP Top 10 for LLM Apps (assessment-only) |
+| **cloud** | Cloud & container posture — Prowler (CSPM) + Trivy, compliance-mapped, read-only |
 | **forensics** | Timeline, MITRE ATT&CK mapping, artifact collection |
 | **reporting** | Three-tier report (exec / technical / compliance), PTES-structured; findings mapped to ISO 27001, PCI DSS, CBK, Kenya DPA 2019 |
 
@@ -245,6 +246,8 @@ Two servers are wired and ready:
   flag + a named human approver, and every recipient must be in an authorized email domain.
 - **`llm_redteam`** — in-repo garak + PyRIT server (C8). Assessment-only against an authorized
   LLM endpoint; findings map to the OWASP Top 10 for LLM Apps.
+- **`cloud`** — in-repo Prowler + Trivy server (C9). Read-only CSPM / container posture, scoped
+  to authorized accounts/images; failed checks carry severity + compliance controls.
 
 > **Efficiency note:** MCP tool schemas ride in every agent's context on every
 > call. The `filesystem` server offers 13 tools; only the 6 useful read-only
@@ -396,7 +399,7 @@ linux/
 │   ├── telemetry.py          token / cost tracking
 │   ├── guardrails.py         destructive-action blocking + secret redaction
 │   └── attack_framework.py   MITRE ATT&CK technique registry
-├── agents/                   the 10 specialist agents
+├── agents/                   the 11 specialist agents
 ├── mcp_layer/                MCP integration (bridge + server registry)
 ├── api/server.py             FastAPI REST interface
 ├── cli/main.py               rich terminal UI

@@ -132,6 +132,18 @@ MCP_SERVERS: dict[str, dict] = {
         "tool_allowlist": ["garak_scan", "pyrit_probe"],
     },
 
+    # ── Cloud & container posture (C9) — in-repo Prowler + Trivy server ───────
+    # Read-only CSPM/container scanning, scoped to AUTHORIZED_CLOUD_ACCOUNTS. Each failed
+    # check → candidate finding with severity + the tool's compliance controls (feeds C3).
+    "cloud": {
+        "transport": "stdio",
+        "command": _PY,
+        "args": ["-m", "mcp_layer.servers.cloud_server"],
+        "description": "Cloud & container posture — Prowler (CSPM) + Trivy (read-only)",
+        "tool_prefix": "cloud",
+        "tool_allowlist": ["prowler_scan", "trivy_scan"],
+    },
+
     # ── Custom security-tool server (template — you build this) ───────────────
     "sectools": {
         "transport": "stdio",
