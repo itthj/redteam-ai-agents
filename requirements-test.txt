@@ -7,16 +7,16 @@
 # sync with the modules the tests touch; add a package here when a new test needs
 # it. Pinned floors mirror the production requirements.txt.
 
-anthropic>=0.69.0
-pydantic>=2.7.0
-pydantic-settings>=2.2.0
-python-dotenv>=1.0.0
-networkx>=3.0
-opentelemetry-api>=1.20
-opentelemetry-sdk>=1.20
-fastapi>=0.111.0
-uvicorn[standard]>=0.29.0
-httpx>=0.27.0            # used by fastapi.testclient (TestClient) in the dashboard tests
-mcp>=1.2.0
-pytest>=8.2.0
-pytest-asyncio>=0.23.0
+anthropic>=0.120.2
+pydantic>=2.13.4
+pydantic-settings>=2.14.2
+python-dotenv>=1.2.2
+networkx>=3.6.1
+opentelemetry-api>=1.44.0
+opentelemetry-sdk>=1.44.0
+fastapi>=0.141.1
+uvicorn[standard]>=0.52.0
+httpx>=0.28.1            # used by fastapi.testclient (TestClient) in the dashboard tests
+mcp>=2.0.0
+pytest>=9.1.1
+pytest-asyncio>=1.4.0
